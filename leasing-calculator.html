@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Калькулятор лизинга</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geologica:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /*
+   * Все стили скопированы внутрь класса-обёртки .lc-widget,
+   * чтобы не ломать стили хост-страницы при встраивании.
+   * Единственные глобальные правила — box-sizing и шрифт,
+   * которые безопасно сбрасываются внутри самого виджета.
+   */
+
+  /* ── Scoped reset — не затрагивает хост-страницу ─────────── */
+  .lc-widget, .lc-widget * { box-sizing: border-box; margin: 0; padding: 0; }
+  .lc-widget { font-family: 'Geologica', sans-serif; }
+
+  /* ── CSS-переменные ───────────────────────────────────────────
+     Объявлены на :root, чтобы работать и внутри .lc-widget,
+     и в модальном окне, которое находится вне него.
+     Меняйте только --color-primary и --color-secondary.
+  ─────────────────────────────────────────────────────────── */
+  :root {
+    --color-primary:   #083e63;
+    --color-secondary: #FF6B2B;
+
+    --color-bg:      #F4F6FB;
+    --color-card:    #FFFFFF;
+    --color-text:    #1A1D2E;
+    --color-muted:   #7B8099;
+    --color-border:  #E2E6F0;
+    --color-track:   #D6DBE8;
+    --radius-card:   18px;
+    --radius-btn:    12px;
+    --shadow-card:   0 4px 32px rgba(26,86,232,.08);
+    --transition:    .18s cubic-bezier(.4,0,.2,1);
+  }
+
+  /* ── Widget shell ─────────────────────────────────────────── */
+  .lc-widget {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    width: 100%;
+    max-width: 960px;
+    color: var(--color-text);
+  }
+
+  @media (max-width: 680px) {
+    .lc-widget { grid-template-columns: 1fr; }
+  }
+
+  .lc-card {
+    background: var(--color-card);
+    border-radius: var(--radius-card);
+    padding: 36px 32px;
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--color-border);
+  }
+
+  /* ── Left card ────────────────────────────────────────────── */
+  .lc-card--inputs h2 {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 32px;
+    letter-spacing: -.3px;
+  }
+
+  .lc-field { margin-bottom: 28px; }
+  .lc-field:last-child { margin-bottom: 0; }
+
+  .lc-field__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .lc-field__label {
+    font-size: 14px;
+    color: var(--color-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .lc-badge {
+    background: var(--color-secondary);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 5px;
+    letter-spacing: .3px;
+  }
+
+  .lc-field__value {
+    font-size: 16px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  /* ── Slider ───────────────────────────────────────────────── */
+  .lc-slider-wrap { position: relative; }
+
+  .lc-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 4px;
+    background: var(--color-track);
+    outline: none;
+    cursor: pointer;
+    position: relative;
+    z-index: 1;
+  }
+
+  .lc-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    border: 3px solid #fff;
+    box-shadow: 0 2px 8px rgba(26,86,232,.35);
+    cursor: pointer;
+    transition: transform var(--transition), box-shadow var(--transition);
+  }
+  .lc-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+    box-shadow: 0 3px 14px rgba(26,86,232,.45);
+  }
+  .lc-slider::-moz-range-thumb {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    border: 3px solid #fff;
+    box-shadow: 0 2px 8px rgba(26,86,232,.35);
+    cursor: pointer;
+  }
+
+  .lc-slider-ticks {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+  }
+  .lc-slider-ticks span {
+    font-size: 11px;
+    color: var(--color-muted);
+  }
+
+  /* ── Right card ───────────────────────────────────────────── */
+  .lc-card--offer h3 {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-muted);
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+  }
+
+  .lc-offer-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 28px;
+  }
+
+  .lc-offer-item__label {
+    font-size: 13px;
+    color: var(--color-muted);
+    margin-bottom: 4px;
+  }
+
+  .lc-offer-item__amount {
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -.5px;
+    line-height: 1;
+  }
+
+  .lc-offer-item__sub {
+    font-size: 12px;
+    color: var(--color-muted);
+    margin-top: 3px;
+  }
+
+  .lc-divider {
+    height: 1px;
+    background: var(--color-border);
+    margin-bottom: 24px;
+  }
+
+  .lc-cta-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: 6px;
+  }
+
+  .lc-cta-sub {
+    font-size: 13px;
+    color: var(--color-muted);
+    margin-bottom: 20px;
+  }
+
+  /* ── Button ───────────────────────────────────────────────── */
+  .lc-btn {
+    width: 100%;
+    padding: 16px;
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-btn);
+    font-family: 'Geologica', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    /* FIX: hover-цвет теперь через filter, не захардкоженный hex */
+    transition: filter var(--transition), transform var(--transition), box-shadow var(--transition);
+    box-shadow: 0 4px 18px rgba(26,86,232,.3);
+    letter-spacing: .2px;
+  }
+  .lc-btn:hover {
+    filter: brightness(1.15);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 24px rgba(26,86,232,.38);
+  }
+  .lc-btn:active { transform: translateY(0); }
+
+  /* FIX: loading — отдельный data-атрибут вместо класса,
+     чтобы не ломать специфичность при сбросе */
+  .lc-btn[data-loading] {
+    pointer-events: none;
+    opacity: .7;
+  }
+  .lc-btn[data-loading]::after {
+    content: '';
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: lc-spin .6s linear infinite;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  @keyframes lc-spin { to { transform: rotate(360deg); } }
+
+  .lc-toast {
+    margin-top: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    display: none;
+  }
+  .lc-toast--success {
+    background: #edfaf1;
+    color: #1a7a40;
+    border: 1px solid #a3e4bb;
+    display: block;
+  }
+  .lc-toast--error {
+    background: #fff1f0;
+    color: #c0392b;
+    border: 1px solid #f5c6c3;
+    display: block;
+  }
+
+  .lc-disclaimer {
+    font-size: 11px;
+    color: var(--color-muted);
+    line-height: 1.55;
+    margin-top: 16px;
+  }
+
+  /* ── Animated number ──────────────────────────────────────── */
+  .lc-num { display: inline-block; transition: opacity .15s; }
+  .lc-num--updating { opacity: 0; }
+
+  /* ── Loading overlay (показывается пока грузится таблица с API) ── */
+  .lc-widget[data-lc-loading] {
+    position: relative;
+    pointer-events: none;
+  }
+  .lc-widget[data-lc-loading]::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(244, 246, 251, 0.75);
+    border-radius: var(--radius-card);
+    backdrop-filter: blur(2px);
+    z-index: 10;
+  }
+  .lc-loading-badge {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 11;
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 14px 22px;
+    font-size: 13px;
+    color: var(--color-muted);
+    display: none;
+    align-items: center;
+    gap: 10px;
+    box-shadow: var(--shadow-card);
+    white-space: nowrap;
+  }
+  .lc-widget[data-lc-loading] .lc-loading-badge { display: flex; }
+  .lc-loading-badge::before {
+    content: '';
+    display: block;
+    width: 16px; height: 16px;
+    border: 2px solid var(--color-track);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: lc-spin .7s linear infinite;
+    flex-shrink: 0;
+  }
+  /* ── Модальное окно с веб-формой ELMA365 ─────────────────── */
+  .lc-modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 20, 40, 0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 9000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .lc-modal-backdrop.lc-modal--open {
+    display: flex;
+    animation: lc-modal-in .22s cubic-bezier(.4,0,.2,1);
+  }
+  @keyframes lc-modal-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .lc-modal {
+    background: var(--color-card);
+    border-radius: var(--radius-card);
+    box-shadow: 0 24px 80px rgba(8,20,40,.35);
+    width: 100%;
+    max-width: 600px;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+    animation: lc-modal-slide .24s cubic-bezier(.4,0,.2,1);
+  }
+  @keyframes lc-modal-slide {
+    from { transform: translateY(18px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+
+  .lc-modal__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--color-border);
+    flex-shrink: 0;
+  }
+  .lc-modal__title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-text);
+    letter-spacing: -.2px;
+  }
+  .lc-modal__close {
+    width: 32px; height: 32px;
+    border: none;
+    background: var(--color-bg);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-muted);
+    font-size: 18px;
+    line-height: 1;
+    transition: background var(--transition), color var(--transition);
+    flex-shrink: 0;
+  }
+  .lc-modal__close:hover {
+    background: var(--color-border);
+    color: var(--color-text);
+  }
+
+  .lc-modal__body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px;
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  /* Прилипающий футер — всегда виден, не скроллится */
+  .lc-modal__footer {
+    flex-shrink: 0;
+    padding: 14px 20px 20px;
+    border-top: 1px solid var(--color-border);
+    background: var(--color-card);
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  /* ── Форма внутри модалки ─────────────────────────────────── */
+  .lc-form { display: flex; flex-direction: column; gap: 16px; }
+
+  .lc-form__section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    color: var(--color-muted);
+    margin-bottom: 2px;
+    margin-top: 8px;
+  }
+  .lc-form__section-title:first-child { margin-top: 0; }
+
+  .lc-form { width: 100%; box-sizing: border-box; }
+  .lc-form__row { display: grid; gap: 12px; width: 100%; box-sizing: border-box; }
+  .lc-form__row--2 { grid-template-columns: 1fr 1fr; }
+  @media (max-width: 460px) { .lc-form__row--2 { grid-template-columns: 1fr; } }
+
+  .lc-form__field { display: flex; flex-direction: column; gap: 5px; min-width: 0; box-sizing: border-box; }
+
+  .lc-form__label {
+    font-size: 13px;
+    color: var(--color-muted);
+    font-weight: 500;
+  }
+  /* Обязательные поля — добавьте атрибут data-required к .lc-form__field */
+  .lc-form__field[data-required] .lc-form__label::after {
+    content: ' *';
+    color: #e53e3e;
+  }
+
+  .lc-form__input {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 11px 14px;
+    border: 1.5px solid var(--color-border);
+    border-radius: 10px;
+    font-family: 'Geologica', sans-serif;
+    font-size: 15px;
+    color: #1A1D2E;          /* введённый текст — насыщенный тёмный */
+    background: #ffffff;     /* белый фон — плейсхолдер не сливается */
+    outline: none;
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+  .lc-form__input::placeholder { color: #b0b8cc; } /* плейсхолдер — заметно светлее текста */
+  .lc-form__input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(8,62,99,.10);
+    background: #fff;
+  }
+  .lc-form__input--error {
+    border-color: #e53e3e;
+    box-shadow: 0 0 0 3px rgba(229,62,62,.10);
+  }
+  .lc-form__error {
+    font-size: 11px;
+    color: #e53e3e;
+    display: none;
+  }
+  .lc-form__field[data-required] .lc-form__input--error ~ .lc-form__error { display: block; }
+
+  .lc-form__input[readonly] {
+    background: #f4f6fb;
+    color: var(--color-muted);
+    cursor: default;
+    border-style: dashed;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .lc-form__divider {
+    height: 1px;
+    background: var(--color-border);
+    margin: 4px 0;
+  }
+
+  /* ── Чекбокс согласия ─────────────────────────────────────── */
+  .lc-form__consent { margin-top: 4px; }
+
+  .lc-form__consent-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .lc-form__checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    border: 1.5px solid var(--color-border);
+    border-radius: 5px;
+    background: var(--color-bg);
+    cursor: pointer;
+    transition: border-color var(--transition), background var(--transition);
+    position: relative;
+  }
+  .lc-form__checkbox:checked {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+  }
+  .lc-form__checkbox:checked::after {
+    content: '';
+    position: absolute;
+    left: 4px; top: 1px;
+    width: 5px; height: 9px;
+    border: 2px solid #fff;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg);
+  }
+  .lc-form__checkbox:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+  .lc-form__checkbox.lc-form__input--error {
+    border-color: #e53e3e;
+    box-shadow: 0 0 0 3px rgba(229,62,62,.10);
+  }
+
+  .lc-form__consent-text {
+    font-size: 12px;
+    color: var(--color-muted);
+    line-height: 1.5;
+  }
+  .lc-form__consent-link {
+    color: var(--color-primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .lc-form__consent-link:hover { opacity: .75; }
+
+  /* Ошибка чекбокса — показывается через JS, не через CSS :has() для совместимости */
+  #lf-consent-error { display: none; }
+  #lf-consent-error.lc-error--visible { display: block; }
+</style>
+</head>
+<body style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px 16px;background:#F4F6FB;">
+
+<!--
+  Для встраивания на хост-страницу:
+  1. Скопируйте блок <style> и этот <div class="lc-widget"> в нужное место.
+  2. Подключите шрифт Geologica (тег <link> выше) в <head> хост-страницы.
+  3. Скопируйте блок <script> в конец страницы (или в отдельный .js-файл).
+  4. Вызовите LeasingCalculator.init('#leasingCalculator', { ... }) с вашим конфигом.
+-->
+
+<div class="lc-widget" id="leasingCalculator" data-lc-loading>
+
+  <!-- Спиннер показывается пока init() грузит таблицу удорожания с API -->
+  <div class="lc-loading-badge">Загружаем условия…</div>
+
+  <!-- ── LEFT: Inputs ──────────────────────────────────────── -->
+  <div class="lc-card lc-card--inputs">
+    <h2>Рассчитайте свой платёж</h2>
+
+    <!-- Equipment cost -->
+    <div class="lc-field">
+      <div class="lc-field__header">
+        <span class="lc-field__label">Стоимость оборудования</span>
+        <span class="lc-field__value" data-lc="displayCost">600 000 ₽</span>
+      </div>
+      <div class="lc-slider-wrap">
+        <input type="range" class="lc-slider" data-lc="sliderCost"
+               aria-label="Стоимость оборудования">
+        <div class="lc-slider-ticks">
+          <span data-lc="tickCostMin"></span>
+          <span data-lc="tickCostMid"></span>
+          <span data-lc="tickCostMax"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Down payment -->
+    <div class="lc-field">
+      <div class="lc-field__header">
+        <span class="lc-field__label">
+          Первоначальный взнос
+          <span class="lc-badge" data-lc="badgePercent">10%</span>
+        </span>
+        <span class="lc-field__value" data-lc="displayDown">60 000 ₽</span>
+      </div>
+      <div class="lc-slider-wrap">
+        <input type="range" class="lc-slider" data-lc="sliderDown"
+               min="0" step="1"
+               aria-label="Первоначальный взнос">
+        <div class="lc-slider-ticks">
+          <span data-lc="tickDownMin"></span>
+          <span data-lc="tickDownMid"></span>
+          <span data-lc="tickDownMax"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Leasing term -->
+    <div class="lc-field">
+      <div class="lc-field__header">
+        <span class="lc-field__label">Срок лизинга</span>
+        <span class="lc-field__value" data-lc="displayTerm">12 мес</span>
+      </div>
+      <div class="lc-slider-wrap">
+        <input type="range" class="lc-slider" data-lc="sliderTerm"
+               min="0" step="1"
+               aria-label="Срок лизинга">
+        <div class="lc-slider-ticks">
+          <span data-lc="tickTermMin"></span>
+          <span data-lc="tickTermMid"></span>
+          <span data-lc="tickTermMax"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RIGHT: Offer ──────────────────────────────────────── -->
+  <div class="lc-card lc-card--offer">
+    <h3>Наше предложение</h3>
+
+    <div class="lc-offer-grid">
+      <div class="lc-offer-item">
+        <div class="lc-offer-item__label">Ежемесячный платёж:</div>
+        <div class="lc-offer-item__amount">
+          <span class="lc-num" data-lc="resultMonthly">—</span> ₽
+        </div>
+      </div>
+      <div class="lc-offer-item">
+        <div class="lc-offer-item__label">Переплата:</div>
+        <div class="lc-offer-item__amount">
+          <span class="lc-num" data-lc="resultOverpay">—</span> ₽
+        </div>
+        <div class="lc-offer-item__sub" data-lc="resultOverpaySub"></div>
+      </div>
+    </div>
+
+    <div class="lc-divider"></div>
+
+    <div class="lc-cta-title">Хотите выгодное предложение?</div>
+    <div class="lc-cta-sub">Оставьте заявку — подберём удобный тариф</div>
+
+    <button class="lc-btn" data-lc="btnSubmit">Отправить заявку</button>
+    <div class="lc-toast" data-lc="toast"></div>
+
+    <p class="lc-disclaimer">
+      Стоимость предмета лизинга и расчёты через калькулятор являются
+      предварительными. Для точного определения процентной ставки обратитесь
+      к менеджеру в вашем регионе.
+    </p>
+  </div>
+
+</div>
+
+<script>
+/**
+ * LeasingCalculator — самодостаточный виджет без глобальных зависимостей.
+ *
+ * Для встраивания подключите этот скрипт и вызовите:
+ *   LeasingCalculator.init('#leasingCalculator', config)
+ *
+ * Все состояние и DOM-ссылки хранятся внутри замыкания init(),
+ * поэтому несколько экземпляров на одной странице работают независимо.
+ */
+const LeasingCalculator = (() => {
+
+  /* ── Конфигурация по умолчанию ────────────────────────────── */
+  const DEFAULTS = {
+    /** Диапазон стоимости оборудования (₽) */
+    costMin: 600_000,
+    costMax: 30_000_000,
+    costStep: 10_000,
+
+    /** Доступные значения первоначального взноса (%) */
+    downPaymentOptions: [10, 15, 20, 25, 30, 35, 40, 45, 49],
+
+    /** Доступные сроки лизинга (месяцы) */
+    termOptions: [12, 18, 24, 36, 48, 60],
+
+    /**
+     * Таблица удорожания — fallback, если запрос к API не удался.
+     * Ключ: "<срок>_<взнос%>", значение: коэффициент к (стоимость − взнос).
+     * В норме таблица загружается из API при инициализации.
+     */
+    appreciationTable: {
+      "12_10": 1.14, "12_15": 1.12, "12_20": 1.11, "12_25": 1.10, "12_30": 1.09, "12_35": 1.08, "12_40": 1.07, "12_45": 1.06, "12_49": 1.05,
+      "18_10": 1.21, "18_15": 1.19, "18_20": 1.17, "18_25": 1.16, "18_30": 1.14, "18_35": 1.13, "18_40": 1.11, "18_45": 1.10, "18_49": 1.09,
+      "24_10": 1.28, "24_15": 1.26, "24_20": 1.24, "24_25": 1.22, "24_30": 1.20, "24_35": 1.18, "24_40": 1.16, "24_45": 1.14, "24_49": 1.12,
+      "36_10": 1.42, "36_15": 1.39, "36_20": 1.37, "36_25": 1.34, "36_30": 1.31, "36_35": 1.29, "36_40": 1.26, "36_45": 1.24, "36_49": 1.21,
+      "48_10": 1.56, "48_15": 1.53, "48_20": 1.50, "48_25": 1.47, "48_30": 1.44, "48_35": 1.41, "48_40": 1.38, "48_45": 1.35, "48_49": 1.31,
+      "60_10": 1.70, "60_15": 1.66, "60_20": 1.62, "60_25": 1.59, "60_30": 1.55, "60_35": 1.51, "60_40": 1.47, "60_45": 1.44, "60_49": 1.39,
+    },
+    appreciationDefault: 1.20,
+
+    /**
+     * URL и токен для загрузки таблицы удорожания из ELMA365.
+     * Таблица берётся из item.price_appreciation_table.rows.
+     * Строки имеют вид: { advance: 10, term_12: 1.14, term_24: 1.26, ... }
+     */
+    appreciationApiUrl: "https://5zekdxettfojc.elma365.ru/pub/v1/app/_system_catalogs/global_consts/01924cbe-e082-702d-ac58-b5536152c584/get",
+    appreciationApiToken: "2dbf3099-533a-4082-9126-34241b0c8fe3",
+
+    /** URL API для отправки заявки. Замените на реальный. */
+    apiLeadUrl: "",
+
+    /**
+     * Коллбэк вместо fetch-запроса (опционально).
+     * Получает payload, должен вернуть Promise.
+     * Если задан — apiLeadUrl игнорируется.
+     *
+     * @param {Object} payload
+     * @returns {Promise<void>}
+     */
+    onSubmit: null,
+  };
+
+  /* ── Утилиты ──────────────────────────────────────────────── */
+  const fmt = n => Math.round(n).toLocaleString("ru-RU");
+
+  function mergeConfig(userConfig) {
+    return Object.assign({}, DEFAULTS, userConfig, {
+      // Глубокое слияние таблицы удорожания, если пользователь передал свою
+      appreciationTable: Object.assign(
+        {},
+        DEFAULTS.appreciationTable,
+        userConfig?.appreciationTable
+      ),
+    });
+  }
+
+  /* ── Расчёт ───────────────────────────────────────────────── */
+  function getAppreciation(cfg, term, downPct) {
+    const key = `${term}_${downPct}`;
+    return cfg.appreciationTable[key] ?? cfg.appreciationDefault;
+  }
+
+  function calculate(cfg, cost, downPct, term) {
+    const down    = cost * downPct / 100;
+    const body    = cost - down;
+    const appr    = getAppreciation(cfg, term, downPct);
+    const total   = body * appr;
+    const monthly = total / term;
+    const overpay = total - body;
+    return { down, monthly, overpay, total, body };
+  }
+
+  /* ── Анимация цифр (с отменой предыдущего таймера) ──────── */
+  // FIX: накапливающиеся setTimeout при быстром движении слайдера
+  //      решены через хранение id таймера на самом элементе
+  function animateNum(el, newText) {
+    if (el._lcTimer) clearTimeout(el._lcTimer);
+    el.classList.add("lc-num--updating");
+    el._lcTimer = setTimeout(() => {
+      el.textContent = newText;
+      el.classList.remove("lc-num--updating");
+      el._lcTimer = null;
+    }, 120);
+  }
+
+  /* ── Заливка трека слайдера ───────────────────────────────── */
+  function updateFill(slider, primaryColor) {
+    const pct = (slider.value - slider.min) / (slider.max - slider.min) * 100;
+    slider.style.background =
+      `linear-gradient(to right, ${primaryColor} ${pct}%, var(--color-track) ${pct}%)`;
+  }
+
+  /* ── Подписи делений ──────────────────────────────────────── */
+  // FIX: средняя метка cost теперь вычисляется динамически, не захардкожена
+  function costLabel(v) {
+    if (v >= 1_000_000) return (v / 1_000_000).toLocaleString("ru-RU", { maximumFractionDigits: 1 }) + " млн";
+    return (v / 1_000).toLocaleString("ru-RU", { maximumFractionDigits: 0 }) + " тыс";
+  }
+
+  /* ════════════════════════════════════════════════════════════
+   * ██ ЗАГРУЗКА ТАБЛИЦЫ УДОРОЖАНИЯ — вызывается из init() ██
+   *
+   * Запрашивает GET /get из ELMA365 и преобразует массив
+   * price_appreciation_table.rows в плоский объект вида:
+   *   { "12_10": 1.14, "24_25": 1.22, ... }
+   *
+   * Строка API: { advance: 10, term_12: 1.14, term_24: 1.26, ... }
+   * Поддерживаемые ключи срока: term_12, term_18, term_24, term_36, term_48, term_60.
+   *
+   * @param {string} url    — URL эндпоинта
+   * @param {string} token  — Bearer-токен авторизации
+   * @returns {Promise<Object|null>} плоская таблица или null при ошибке
+   * ════════════════════════════════════════════════════════════ */
+  async function fetchAppreciationTable(url, token) {
+    try {
+      const resp = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type":  "application/json",
+        },
+      });
+
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+      const json = await resp.json();
+
+      // Достаём rows из вложенного объекта
+      const rows = json?.item?.price_appreciation_table?.rows;
+      if (!Array.isArray(rows) || rows.length === 0) {
+        throw new Error("price_appreciation_table.rows пуст или отсутствует");
+      }
+
+      // Маппим строки в плоскую таблицу { "term_advance": coefficient }
+      const TERM_KEYS = [12, 18, 24, 36, 48, 60];
+      const table = {};
+
+      for (const row of rows) {
+        const advance = row.advance;
+        if (advance == null) continue;
+
+        for (const term of TERM_KEYS) {
+          const apiKey = `term_${term}`;       // term_12, term_24 …
+          const val = row[apiKey];
+          if (val != null) {
+            table[`${term}_${advance}`] = val; // "12_10", "24_25" …
+          }
+        }
+      }
+
+      if (Object.keys(table).length === 0) throw new Error("Таблица пуста после маппинга");
+
+      return table;
+
+    } catch (err) {
+      console.warn("[LeasingCalculator] Не удалось загрузить таблицу удорожания с API, используется fallback:", err.message);
+      return null;
+    }
+  }
+
+  /* ════════════════════════════════════════════════════════════
+   * ██ ТОЧКА ВХОДА — вызывается при инициализации виджета ██
+   *
+   * Функция асинхронная: сначала загружает таблицу удорожания
+   * с API ELMA365, затем монтирует виджет.
+   * На время загрузки root получает атрибут [data-lc-loading].
+   *
+   * @param {string|Element} rootSelector — CSS-селектор или DOM-элемент
+   * @param {Object}         userConfig   — переопределение любых полей DEFAULTS
+   * @returns {Promise<{ destroy: Function }>}
+   * ════════════════════════════════════════════════════════════ */
+  async function init(rootSelector, userConfig = {}) {
+    /* 1. Найти корневой элемент */
+    const root = typeof rootSelector === "string"
+      ? document.querySelector(rootSelector)
+      : rootSelector;
+
+    if (!root) {
+      console.error("[LeasingCalculator] Элемент не найден:", rootSelector);
+      return;
+    }
+
+    /* 2. Показать loading-состояние (атрибут уже есть в HTML, но ставим явно на случай JS-инициализации) */
+    root.setAttribute("data-lc-loading", "");
+
+    /* 3. Загрузить таблицу удорожания с API */
+    const apiUrl   = userConfig.appreciationApiUrl   ?? DEFAULTS.appreciationApiUrl;
+    const apiToken = userConfig.appreciationApiToken ?? DEFAULTS.appreciationApiToken;
+
+    let remoteTable = null;
+    if (apiUrl && apiToken) {
+      remoteTable = await fetchAppreciationTable(apiUrl, apiToken);
+    }
+
+    /* 4. Слить конфиг — remote-таблица перекрывает fallback из DEFAULTS */
+    const cfg = mergeConfig({
+      ...userConfig,
+      ...(remoteTable ? { appreciationTable: remoteTable } : {}),
+    });
+
+    /* 5. Снять loading-оверлей */
+    root.removeAttribute("data-lc-loading");
+
+    /* 6. Получить CSS-переменную --color-primary для заливки слайдеров */
+    const primaryColor = getComputedStyle(root)
+      .getPropertyValue("--color-primary").trim() || "#083e63";
+
+    /* 7. Собрать DOM-ссылки внутри root через data-lc (не id — безопасно для нескольких экземпляров) */
+    const q = key => root.querySelector(`[data-lc="${key}"]`);
+
+    const sliderCost  = q("sliderCost");
+    const sliderDown  = q("sliderDown");
+    const sliderTerm  = q("sliderTerm");
+    const displayCost = q("displayCost");
+    const displayDown = q("displayDown");
+    const displayTerm = q("displayTerm");
+    const badgePct    = q("badgePercent");
+    const numMonthly  = q("resultMonthly");
+    const numOverpay  = q("resultOverpay");
+    const subOverpay  = q("resultOverpaySub");
+    const btnSubmit   = q("btnSubmit");
+    const toast       = q("toast");
+
+    /* 8. Настроить слайдеры */
+    sliderCost.min   = cfg.costMin;
+    sliderCost.max   = cfg.costMax;
+    sliderCost.step  = cfg.costStep;
+    sliderCost.value = cfg.costMin;
+
+    sliderDown.min   = 0;
+    sliderDown.max   = cfg.downPaymentOptions.length - 1;
+    sliderDown.value = 0;
+
+    sliderTerm.min   = 0;
+    sliderTerm.max   = cfg.termOptions.length - 1;
+    sliderTerm.value = 0;
+
+    /* 9. Метки делений */
+    const midCost = Math.round((cfg.costMin + cfg.costMax) / 2);
+    q("tickCostMin").textContent = costLabel(cfg.costMin);
+    q("tickCostMid").textContent = costLabel(midCost);
+    q("tickCostMax").textContent = costLabel(cfg.costMax);
+
+    const downOpts = cfg.downPaymentOptions;
+    q("tickDownMin").textContent = downOpts[0] + "%";
+    q("tickDownMid").textContent = downOpts[Math.floor(downOpts.length / 2)] + "%";
+    q("tickDownMax").textContent = downOpts[downOpts.length - 1] + "%";
+
+    const termOpts = cfg.termOptions;
+    q("tickTermMin").textContent = termOpts[0] + " мес";
+    q("tickTermMid").textContent = termOpts[Math.floor(termOpts.length / 2)] + " мес";
+    q("tickTermMax").textContent = termOpts[termOpts.length - 1] + " мес";
+
+    /* 10. Функция отрисовки */
+    function render() {
+      const cost    = Number(sliderCost.value);
+      const downPct = cfg.downPaymentOptions[Number(sliderDown.value)];
+      const term    = cfg.termOptions[Number(sliderTerm.value)];
+      const { down, monthly, overpay } = calculate(cfg, cost, downPct, term);
+
+      displayCost.textContent = fmt(cost) + " ₽";
+      displayDown.textContent = fmt(down) + " ₽";
+      displayTerm.textContent = term + " мес";
+      badgePct.textContent    = downPct + "%";
+
+      animateNum(numMonthly, fmt(monthly));
+      animateNum(numOverpay, fmt(overpay));
+      subOverpay.textContent = `/ за ${term} мес`;
+
+      updateFill(sliderCost, primaryColor);
+      updateFill(sliderDown, primaryColor);
+      updateFill(sliderTerm, primaryColor);
+    }
+
+    /* 11. Подписка на события */
+    sliderCost.addEventListener("input", render);
+    sliderDown.addEventListener("input", render);
+    sliderTerm.addEventListener("input", render);
+
+    /* 12. Первичная отрисовка */
+    render();
+
+    /* 13. Обработчик отправки заявки */
+    async function handleSubmit() {
+      const cost    = Number(sliderCost.value);
+      const downPct = cfg.downPaymentOptions[Number(sliderDown.value)];
+      const term    = cfg.termOptions[Number(sliderTerm.value)];
+      const { down, monthly, overpay } = calculate(cfg, cost, downPct, term);
+
+      const payload = {
+        equipment_cost:      cost,
+        down_payment_pct:    downPct,
+        down_payment_rub:    Math.round(down),
+        leasing_term_months: term,
+        monthly_payment:     Math.round(monthly),
+        overpayment:         Math.round(overpay),
+        source:              "leasing_calculator",
+        timestamp:           new Date().toISOString(),
+      };
+
+      btnSubmit.setAttribute("data-loading", "");
+      btnSubmit.textContent = "Отправляем…";
+      toast.className = "lc-toast";
+      toast.textContent = "";
+
+      try {
+        if (typeof cfg.onSubmit === "function") {
+          await cfg.onSubmit(payload);
+        } else if (cfg.apiLeadUrl) {
+          const resp = await fetch(cfg.apiLeadUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        } else {
+          console.warn("[LeasingCalculator] Не задан apiLeadUrl и onSubmit. Payload:", payload);
+        }
+
+        toast.className = "lc-toast lc-toast--success";
+        toast.textContent = "✓ Заявка отправлена! Мы свяжемся с вами в ближайшее время.";
+        btnSubmit.textContent = "Заявка отправлена";
+      } catch (err) {
+        console.error("[LeasingCalculator] Ошибка отправки:", err);
+        toast.className = "lc-toast lc-toast--error";
+        toast.textContent = "Не удалось отправить заявку. Попробуйте позже или позвоните нам.";
+        btnSubmit.textContent = "Отправить заявку";
+      } finally {
+        // FIX: loading-флаг снимается всегда, независимо от результата
+        btnSubmit.removeAttribute("data-loading");
+      }
+    }
+
+    btnSubmit.addEventListener("click", handleSubmit);
+
+    /* 14. Публичный API экземпляра */
+    return {
+      /** Снять все слушатели и очистить таймеры анимации */
+      destroy() {
+        sliderCost.removeEventListener("input", render);
+        sliderDown.removeEventListener("input", render);
+        sliderTerm.removeEventListener("input", render);
+        btnSubmit.removeEventListener("click", handleSubmit);
+        [numMonthly, numOverpay].forEach(el => {
+          if (el._lcTimer) clearTimeout(el._lcTimer);
+        });
+      },
+    };
+  }
+
+  /* ── Публичный интерфейс модуля ──────────────────────────── */
+  return { init };
+
+})();
+
+
+</script>
+
+<!-- ── Модальное окно с формой заявки ───────────────────────
+     Собственная форма — не зависит от ELMA365 widget.js.
+     Данные из калькулятора подтягиваются автоматически.
+────────────────────────────────────────────────────────── -->
+<div class="lc-modal-backdrop" id="lcModalBackdrop" role="dialog"
+     aria-modal="true" aria-label="Форма заявки">
+  <div class="lc-modal">
+    <div class="lc-modal__header">
+      <span class="lc-modal__title">Оставить заявку</span>
+      <button class="lc-modal__close" id="lcModalClose" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="lc-modal__body">
+      <form class="lc-form" id="lcLeadForm" novalidate>
+
+        <p class="lc-form__section-title">Контактные данные</p>
+
+        <!-- ФИО -->
+        <div class="lc-form__field" data-field="fio">
+          <label class="lc-form__label" for="lf-fio">ФИО</label>
+          <input class="lc-form__input" id="lf-fio" name="fio"
+                 type="text" placeholder="Иванов Иван Иванович" autocomplete="name">
+          <span class="lc-form__error">Заполните поле</span>
+        </div>
+
+        <div class="lc-form__row lc-form__row--2">
+          <!-- Телефон -->
+          <div class="lc-form__field" data-field="phone">
+            <label class="lc-form__label" for="lf-phone">Телефон</label>
+            <input class="lc-form__input" id="lf-phone" name="phone"
+                   type="tel" placeholder="+7 (999) 000-00-00" autocomplete="tel">
+            <span class="lc-form__error">Заполните поле</span>
+          </div>
+          <!-- Email -->
+          <div class="lc-form__field" data-field="email">
+            <label class="lc-form__label" for="lf-email">Электронная почта</label>
+            <input class="lc-form__input" id="lf-email" name="email"
+                   type="email" placeholder="mail@example.com" autocomplete="email">
+            <span class="lc-form__error">Заполните поле</span>
+          </div>
+        </div>
+
+        <!-- ИНН -->
+        <div class="lc-form__field" data-field="inn">
+          <label class="lc-form__label" for="lf-inn">ИНН</label>
+          <input class="lc-form__input" id="lf-inn" name="inn"
+                 type="text" placeholder="1234567890" inputmode="numeric" maxlength="12">
+          <span class="lc-form__error">Заполните поле</span>
+        </div>
+
+        <div class="lc-form__divider"></div>
+        <p class="lc-form__section-title">Предмет лизинга</p>
+
+        <!-- Наименование предмета лизинга -->
+        <div class="lc-form__field" data-field="nameSubjectLeasing">
+          <label class="lc-form__label" for="lf-name">Наименование предмета лизинга</label>
+          <input class="lc-form__input" id="lf-name" name="nameSubjectLeasing"
+                 type="text" placeholder="Экскаватор Komatsu PC210">
+          <span class="lc-form__error">Заполните поле</span>
+        </div>
+
+        <div class="lc-form__row lc-form__row--2">
+          <!-- Стоимость — из калькулятора, readonly -->
+          <div class="lc-form__field" data-field="price">
+            <label class="lc-form__label" for="lf-price">Стоимость, ₽</label>
+            <input class="lc-form__input" id="lf-price" name="price"
+                   type="text" readonly tabindex="-1">
+          </div>
+          <!-- Аванс % — из калькулятора, readonly -->
+          <div class="lc-form__field" data-field="avansePart">
+            <label class="lc-form__label" for="lf-advance">Аванс, %</label>
+            <input class="lc-form__input" id="lf-advance" name="avansePart"
+                   type="text" readonly tabindex="-1">
+          </div>
+        </div>
+
+        <!-- Срок лизинга — из калькулятора, readonly -->
+        <div class="lc-form__field" data-field="leasingTerm">
+          <label class="lc-form__label" for="lf-term">Срок лизинга, мес.</label>
+          <input class="lc-form__input" id="lf-term" name="leasingTerm"
+                 type="text" readonly tabindex="-1">
+        </div>
+
+
+        <!-- Согласие на обработку персональных данных -->
+        <div class="lc-form__field lc-form__consent" data-field="consent">
+          <label class="lc-form__consent-label">
+            <input class="lc-form__checkbox" type="checkbox" id="lf-consent" name="consent">
+            <span class="lc-form__consent-text">
+              Я согласен на
+              <a href="https://aspect-leasing.ru/privacy/" target="_blank" rel="noopener"
+                 class="lc-form__consent-link">обработку персональных данных</a>
+            </span>
+          </label>
+          <span class="lc-form__error" id="lf-consent-error">Необходимо ваше согласие</span>
+        </div>
+
+      </form>
+    </div>
+    <!-- Футер с кнопкой прилипает к низу, не скроллится -->
+    <div class="lc-modal__footer">
+      <div class="lc-toast" id="lcLeadToast" style="margin:0 0 10px;"></div>
+      <button class="lc-btn" type="submit" form="lcLeadForm" id="lcLeadSubmit">Отправить заявку</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════
+ * ██ МОДАЛЬНОЕ ОКНО — собственная форма заявки ██
+ *
+ * open(calcState) — принимает текущие значения калькулятора
+ * и подставляет их в readonly-поля формы.
+ *
+ * Отправка: POST /app/_clients/_opportunities/create
+ * Токен: Bearer в заголовке Authorization.
+ *
+ * Чтобы сделать поле обязательным — добавьте атрибут
+ * data-required к нужному .lc-form__field в разметке выше.
+ * ════════════════════════════════════════════════════════════ */
+const LcModal = (() => {
+  const API_BASE  = "https://5zekdxettfojc.elma365.ru";
+  const API_TOKEN = "2dbf3099-533a-4082-9126-34241b0c8fe3";
+  const API_PATH  = "/pub/v1/app/_clients/_opportunities/create";
+
+  const backdrop  = document.getElementById("lcModalBackdrop");
+  const closeBtn  = document.getElementById("lcModalClose");
+  const form      = document.getElementById("lcLeadForm");
+  const submitBtn = document.getElementById("lcLeadSubmit");
+  const toast     = document.getElementById("lcLeadToast");
+
+  /* ── Парсинг ФИО ── */
+  function parseFio(str) {
+    const parts = (str || "").trim().split(/\s+/);
+    return {
+      lastname:   parts[0] || "",
+      firstname:  parts[1] || "",
+      middlename: parts[2] || "",
+    };
+  }
+
+  /* ── Валидация обязательных полей ── */
+  function validate() {
+    let ok = true;
+
+    // Обязательные текстовые поля (data-required на field)
+    form.querySelectorAll(".lc-form__field[data-required]").forEach(field => {
+      const input = field.querySelector(".lc-form__input");
+      if (!input || input.value.trim() === "") {
+        input.classList.add("lc-form__input--error");
+        ok = false;
+      } else {
+        input.classList.remove("lc-form__input--error");
+      }
+    });
+
+    // Чекбокс согласия — всегда обязателен
+    const consent = document.getElementById("lf-consent");
+    const consentErr = document.getElementById("lf-consent-error");
+    if (!consent.checked) {
+      consent.classList.add("lc-form__input--error");
+      consentErr.classList.add("lc-error--visible");
+      ok = false;
+    } else {
+      consent.classList.remove("lc-form__input--error");
+      consentErr.classList.remove("lc-error--visible");
+    }
+
+    return ok;
+  }
+
+  /* ── Сброс ошибок при вводе / изменении ── */
+  form.addEventListener("input", e => {
+    if (e.target.classList.contains("lc-form__input")) {
+      e.target.classList.remove("lc-form__input--error");
+    }
+  });
+  form.addEventListener("change", e => {
+    if (e.target.id === "lf-consent") {
+      e.target.classList.remove("lc-form__input--error");
+      document.getElementById("lf-consent-error").classList.remove("lc-error--visible");
+    }
+  });
+
+  /* ── Сборка payload ── */
+  function buildPayload() {
+    const g = id => document.getElementById(id).value.trim();
+
+    const fioStr   = g("lf-fio");
+    const phone    = g("lf-phone");
+    const email    = g("lf-email");
+    const inn      = g("lf-inn");
+    const name     = g("lf-name");
+    const price    = Number(g("lf-price").replace(/\s/g, "")) || undefined;
+    const advance  = Number(g("lf-advance")) || undefined;
+    const term     = Number(g("lf-term"))    || undefined;
+
+    const payload = { context: {} };
+    const ctx = payload.context;
+
+    if (inn)    ctx.inn           = inn;
+    if (fioStr) ctx.fio           = parseFio(fioStr);
+    if (fioStr) ctx.fio_str       = fioStr;
+    if (phone)  ctx.phone         = [{ type: "home", tel: phone }];
+    if (email)  ctx.email         = [{ type: "home", email: email }];
+    if (name)   ctx.nameSubjectLeasing = name;
+    if (price)  ctx.price         = price;
+    if (advance !== undefined) ctx.avansePart  = advance;
+    if (term    !== undefined) ctx.leasingTerm = term;
+
+    return payload;
+  }
+
+  /* ── Отправка ── */
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!validate()) return;
+
+    submitBtn.setAttribute("data-loading", "");
+    submitBtn.textContent = "Отправляем…";
+    toast.className = "lc-toast";
+    toast.textContent = "";
+
+    try {
+      const resp = await fetch(API_BASE + API_PATH, {
+        method:  "POST",
+        headers: {
+          "Content-Type":  "application/json",
+          "Authorization": `Bearer ${API_TOKEN}`,
+        },
+        body: JSON.stringify(buildPayload()),
+      });
+
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+      toast.className  = "lc-toast lc-toast--success";
+      toast.textContent = "✓ Заявка отправлена! Мы свяжемся с вами в ближайшее время.";
+      submitBtn.disabled = true;
+      form.querySelectorAll(".lc-form__input:not([readonly])").forEach(i => i.value = "");
+      document.getElementById("lf-consent").checked = false;
+      // Закрываем модалку через 3 секунды
+      setTimeout(() => close(), 3000);
+
+    } catch (err) {
+      console.error("[LcModal] Ошибка отправки:", err);
+      toast.className  = "lc-toast lc-toast--error";
+      toast.textContent = "Не удалось отправить заявку. Попробуйте позже.";
+    } finally {
+      submitBtn.removeAttribute("data-loading");
+    }
+  });
+
+  /* ── Открытие / закрытие ── */
+  function open(calcState = {}) {
+    // Подставляем значения из калькулятора в readonly-поля
+    if (calcState.price    != null) document.getElementById("lf-price").value   = calcState.price;
+    if (calcState.advance  != null) document.getElementById("lf-advance").value = calcState.advance;
+    if (calcState.term     != null) document.getElementById("lf-term").value     = calcState.term;
+
+    // Полный сброс состояния при каждом открытии
+    toast.className   = "lc-toast";
+    toast.textContent = "";
+    submitBtn.removeAttribute("data-loading");
+    submitBtn.disabled = false;
+
+    // Сброс ошибок валидации
+    form.querySelectorAll(".lc-form__input--error").forEach(el => el.classList.remove("lc-form__input--error"));
+    const consentErr = document.getElementById("lf-consent-error");
+    if (consentErr) consentErr.classList.remove("lc-error--visible");
+
+    backdrop.classList.add("lc-modal--open");
+    document.body.style.overflow = "hidden";
+    document.getElementById("lf-fio").focus();
+  }
+
+  function close() {
+    backdrop.classList.remove("lc-modal--open");
+    document.body.style.overflow = "";
+  }
+
+  closeBtn.addEventListener("click", close);
+  backdrop.addEventListener("click", e => { if (e.target === backdrop) close(); });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && backdrop.classList.contains("lc-modal--open")) close();
+  });
+
+  return { open, close };
+})();
+
+/* ── Авто-инициализация ────────────────────────────────────── */
+LeasingCalculator.init("#leasingCalculator", {
+  onSubmit: async (payload) => {
+    // Передаём в модалку текущие значения калькулятора
+    LcModal.open({
+      price:   payload.equipment_cost,
+      advance: payload.down_payment_pct,
+      term:    payload.leasing_term_months,
+    });
+  },
+});
+</script>
+
+</body>
+</html>
