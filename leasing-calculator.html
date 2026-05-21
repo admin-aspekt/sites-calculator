@@ -45,12 +45,18 @@
     grid-template-columns: 1fr 1fr;
     gap: 20px;
     width: 100%;
-    max-width: 960px;
+    /* max-width убран — виджет заполняет контейнер целиком */
     color: var(--color-text);
+    box-sizing: border-box;
   }
 
-  @media (max-width: 680px) {
+  /* Одна колонка на узких контейнерах.
+     container queries были бы идеальны, но для совместимости
+     используем обычный media query — переключение на 640px */
+  @media (max-width: 640px) {
     .lc-widget { grid-template-columns: 1fr; }
+    .lc-card { padding: 24px 20px; }
+    .lc-offer-item__amount { font-size: 24px; }
   }
 
   .lc-card {
@@ -59,6 +65,8 @@
     padding: 36px 32px;
     box-shadow: var(--shadow-card);
     border: 1px solid var(--color-border);
+    min-width: 0;      /* критично для grid: не вылезать за контейнер */
+    box-sizing: border-box;
   }
 
   /* ── Left card ────────────────────────────────────────────── */
@@ -121,8 +129,8 @@
 
   .lc-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background: var(--color-primary);
     border: 3px solid #fff;
@@ -135,7 +143,7 @@
     box-shadow: 0 3px 14px rgba(26,86,232,.45);
   }
   .lc-slider::-moz-range-thumb {
-    width: 20px; height: 20px;
+    width: 24px; height: 24px;
     border-radius: 50%;
     background: var(--color-primary);
     border: 3px solid #fff;
@@ -562,7 +570,7 @@
   #lf-consent-error.lc-error--visible { display: block; }
 </style>
 </head>
-<body style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px 16px;background:#F4F6FB;">
+<body style="margin:0;padding:0;background:transparent;">
 
 <!--
   Для встраивания на хост-страницу:
@@ -995,11 +1003,6 @@ const LeasingCalculator = (() => {
         timestamp:           new Date().toISOString(),
       };
 
-      btnSubmit.setAttribute("data-loading", "");
-      btnSubmit.textContent = "Отправляем…";
-      toast.className = "lc-toast";
-      toast.textContent = "";
-
       try {
         if (typeof cfg.onSubmit === "function") {
           await cfg.onSubmit(payload);
@@ -1013,18 +1016,8 @@ const LeasingCalculator = (() => {
         } else {
           console.warn("[LeasingCalculator] Не задан apiLeadUrl и onSubmit. Payload:", payload);
         }
-
-        toast.className = "lc-toast lc-toast--success";
-        toast.textContent = "✓ Заявка отправлена! Мы свяжемся с вами в ближайшее время.";
-        btnSubmit.textContent = "Заявка отправлена";
       } catch (err) {
         console.error("[LeasingCalculator] Ошибка отправки:", err);
-        toast.className = "lc-toast lc-toast--error";
-        toast.textContent = "Не удалось отправить заявку. Попробуйте позже или позвоните нам.";
-        btnSubmit.textContent = "Отправить заявку";
-      } finally {
-        // FIX: loading-флаг снимается всегда, независимо от результата
-        btnSubmit.removeAttribute("data-loading");
       }
     }
 
@@ -1290,9 +1283,7 @@ const LcModal = (() => {
       toast.className  = "lc-toast lc-toast--success";
       toast.textContent = "✓ Заявка отправлена! Мы свяжемся с вами в ближайшее время.";
       submitBtn.disabled = true;
-      form.querySelectorAll(".lc-form__input:not([readonly])").forEach(i => i.value = "");
-      document.getElementById("lf-consent").checked = false;
-      // Закрываем модалку через 3 секунды
+      // Закрываем модалку через 3 секунды (close() сам сбросит поля)
       setTimeout(() => close(), 3000);
 
     } catch (err) {
@@ -1330,6 +1321,17 @@ const LcModal = (() => {
   function close() {
     backdrop.classList.remove("lc-modal--open");
     document.body.style.overflow = "";
+    // Сбрасываем поля при закрытии — следующее открытие всегда чистое
+    setTimeout(() => {
+      form.querySelectorAll(".lc-form__input:not([readonly])").forEach(i => i.value = "");
+      document.getElementById("lf-consent").checked = false;
+      toast.className = "lc-toast";
+      toast.textContent = "";
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Отправить заявку";
+      form.querySelectorAll(".lc-form__input--error").forEach(el => el.classList.remove("lc-form__input--error"));
+      document.getElementById("lf-consent-error").classList.remove("lc-error--visible");
+    }, 300); // после анимации закрытия
   }
 
   closeBtn.addEventListener("click", close);
