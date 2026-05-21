@@ -8,68 +8,116 @@
 <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   /*
-   * Все стили скопированы внутрь класса-обёртки .lc-widget,
-   * чтобы не ломать стили хост-страницы при встраивании.
-   * Единственные глобальные правила — box-sizing и шрифт,
-   * которые безопасно сбрасываются внутри самого виджета.
+   * ─────────────────────────────────────────────────────────────
+   * СТРУКТУРА ФАЙЛА
+   * ─────────────────────────────────────────────────────────────
+   * 1. Scoped reset        — изоляция от стилей хост-страницы
+   * 2. CSS-переменные      — все цвета и токены в одном месте
+   * 3. Widget shell        — внешняя сетка калькулятора
+   * 4. Карточки            — левая (слайдеры) и правая (результат)
+   * 5. Слайдеры            — кастомный range input
+   * 6. Правая карточка     — результаты и CTA
+   * 7. Кнопка              — универсальный .lc-btn
+   * 8. Toast               — уведомления об успехе/ошибке
+   * 9. Анимация цифр       — плавная смена значений
+   * 10. Loading overlay    — спиннер пока грузится таблица с API
+   * 11. Модальное окно     — backdrop + контейнер
+   * 12. Форма заявки       — поля, лейблы, ошибки
+   * 13. Чекбокс согласия   — кастомный checkbox
+   * ─────────────────────────────────────────────────────────────
+   *
+   * КАК ВСТРОИТЬ НА САЙТ:
+   *   — Скопируйте весь <style> в <head> хост-страницы
+   *   — Скопируйте разметку виджета (.lc-widget) в нужное место
+   *   — Скопируйте оба блока <script> в конец <body>
+   *   — Подключите шрифт Geologica (тег <link> выше)
+   *
+   * КАК ПЕРЕКРАСИТЬ:
+   *   — Измените только --color-primary и --color-secondary в :root
+   *   — Все остальные цвета подхватятся автоматически
+   * ─────────────────────────────────────────────────────────────
    */
 
-  /* ── Scoped reset — не затрагивает хост-страницу ─────────── */
+  /* ══════════════════════════════════════════════════════════════
+     1. SCOPED RESET
+     Сбрасываем box-sizing и отступы только внутри виджета,
+     чтобы не ломать стили хост-страницы снаружи.
+     Шрифт задаём здесь же — наследуется всеми дочерними элементами.
+  ══════════════════════════════════════════════════════════════ */
   .lc-widget, .lc-widget * { box-sizing: border-box; margin: 0; padding: 0; }
   .lc-widget { font-family: 'Geologica', sans-serif; }
 
-  /* ── CSS-переменные ───────────────────────────────────────────
-     Объявлены на :root, чтобы работать и внутри .lc-widget,
-     и в модальном окне, которое находится вне него.
-     Меняйте только --color-primary и --color-secondary.
-  ─────────────────────────────────────────────────────────── */
-  :root {
-    --color-primary:   #083e63;
-    --color-secondary: #FF6B2B;
+  /* ══════════════════════════════════════════════════════════════
+     2. CSS-ПЕРЕМЕННЫЕ (DESIGN TOKENS)
+     Объявлены на :root — доступны и в виджете, и в модальном
+     окне, которое находится вне .lc-widget в DOM.
 
-    --color-bg:      #F4F6FB;
-    --color-card:    #FFFFFF;
-    --color-text:    #1A1D2E;
-    --color-muted:   #7B8099;
-    --color-border:  #E2E6F0;
-    --color-track:   #D6DBE8;
-    --radius-card:   18px;
-    --radius-btn:    12px;
-    --shadow-card:   0 4px 32px rgba(26,86,232,.08);
-    --transition:    .18s cubic-bezier(.4,0,.2,1);
+     ЧТО МЕНЯТЬ ПРИ РЕБРЕНДИНГЕ:
+       --color-primary   — основной цвет (кнопки, акценты, слайдер)
+       --color-secondary — цвет бейджа с процентом аванса
+
+     ТРОГАТЬ НЕ НУЖНО (если не меняете дизайн):
+       остальные переменные — нейтральные токены фона, текста, границ
+  ══════════════════════════════════════════════════════════════ */
+  :root {
+    --color-primary:   #0f6ba8;   /* основной акцент — кнопки, слайдер, ссылки   */
+    --color-secondary: #FF6B2B;   /* бейдж с % аванса                             */
+
+    --color-bg:      #F4F6FB;     /* фон страницы / readonly-полей                */
+    --color-card:    #FFFFFF;     /* фон карточек и модалки                       */
+    --color-text:    #1A1D2E;     /* основной цвет текста                         */
+    --color-muted:   #7B8099;     /* второстепенный текст (лейблы, подписи)       */
+    --color-border:  #E2E6F0;     /* цвет границ карточек и полей                 */
+    --color-track:   #D6DBE8;     /* незаполненная часть трека слайдера           */
+    --radius-card:   18px;        /* скругление карточек и модалки                */
+    --radius-btn:    12px;        /* скругление кнопок                            */
+    --shadow-card:   0 4px 32px rgba(26,86,232,.08); /* тень карточек            */
+    --transition:    .18s cubic-bezier(.4,0,.2,1);   /* стандартная анимация      */
   }
 
-  /* ── Widget shell ─────────────────────────────────────────── */
+  /* ══════════════════════════════════════════════════════════════
+     3. WIDGET SHELL
+     Внешняя оболочка виджета — двухколоночная сетка.
+     Левая колонка: слайдеры ввода.
+     Правая колонка: результаты расчёта и кнопка заявки.
+
+     max-width намеренно убран — виджет занимает 100% контейнера.
+     Ограничивайте ширину снаружи через родительский div.
+
+     На экранах ≤640px сетка сворачивается в одну колонку.
+  ══════════════════════════════════════════════════════════════ */
   .lc-widget {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px;
     width: 100%;
-    /* max-width убран — виджет заполняет контейнер целиком */
     color: var(--color-text);
     box-sizing: border-box;
   }
 
-  /* Одна колонка на узких контейнерах.
-     container queries были бы идеальны, но для совместимости
-     используем обычный media query — переключение на 640px */
   @media (max-width: 640px) {
     .lc-widget { grid-template-columns: 1fr; }
-    .lc-card { padding: 24px 20px; }
-    .lc-offer-item__amount { font-size: 24px; }
+    .lc-card { padding: 24px 20px; }                   /* меньше padding на мобиле  */
+    .lc-offer-item__amount { font-size: 24px; }         /* меньше шрифт суммы        */
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     4. КАРТОЧКИ
+     Обе колонки — одинаковые белые карточки с тенью.
+     min-width: 0 критично для grid: без него контент может
+     вылезти за пределы колонки (особенно длинные числа).
+  ══════════════════════════════════════════════════════════════ */
   .lc-card {
     background: var(--color-card);
     border-radius: var(--radius-card);
     padding: 36px 32px;
     box-shadow: var(--shadow-card);
     border: 1px solid var(--color-border);
-    min-width: 0;      /* критично для grid: не вылезать за контейнер */
+    min-width: 0;
     box-sizing: border-box;
   }
 
-  /* ── Left card ────────────────────────────────────────────── */
+  /* ── Левая карточка: заголовок ── */
   .lc-card--inputs h2 {
     font-size: 22px;
     font-weight: 700;
@@ -77,9 +125,11 @@
     letter-spacing: -.3px;
   }
 
+  /* ── Поле слайдера (враппер для label + slider) ── */
   .lc-field { margin-bottom: 28px; }
-  .lc-field:last-child { margin-bottom: 0; }
+  .lc-field:last-child { margin-bottom: 0; }  /* последнее поле без нижнего отступа */
 
+  /* Строка над слайдером: слева — название поля, справа — текущее значение */
   .lc-field__header {
     display: flex;
     align-items: center;
@@ -92,9 +142,10 @@
     color: var(--color-muted);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 8px;                      /* отступ между текстом и бейджем % */
   }
 
+  /* Оранжевый бейдж с процентом аванса рядом с лейблом */
   .lc-badge {
     background: var(--color-secondary);
     color: #fff;
@@ -105,13 +156,25 @@
     letter-spacing: .3px;
   }
 
+  /* Текущее значение справа от лейбла (например "600 000 ₽") */
   .lc-field__value {
     font-size: 16px;
     font-weight: 700;
-    white-space: nowrap;
+    white-space: nowrap;           /* не переносим число на новую строку */
   }
 
-  /* ── Slider ───────────────────────────────────────────────── */
+  /* ══════════════════════════════════════════════════════════════
+     5. СЛАЙДЕРЫ
+     Кастомный range input — убираем браузерный стиль через
+     -webkit-appearance: none и рисуем свой трек и ползунок.
+
+     Заливка заполненной части трека делается через inline-style
+     (linear-gradient) в JS функции updateFill() — CSS не может
+     динамически окрашивать часть трека без JavaScript.
+
+     Размер ползунка 24px — оптимально для касания на мобиле
+     (рекомендация Apple HIG: минимум 44pt зоны касания).
+  ══════════════════════════════════════════════════════════════ */
   .lc-slider-wrap { position: relative; }
 
   .lc-slider {
@@ -120,20 +183,21 @@
     width: 100%;
     height: 4px;
     border-radius: 4px;
-    background: var(--color-track);
+    background: var(--color-track);  /* перекрывается inline-style из JS */
     outline: none;
     cursor: pointer;
     position: relative;
     z-index: 1;
   }
 
+  /* Ползунок — webkit (Chrome, Safari, Edge) */
   .lc-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 24px;
     height: 24px;
     border-radius: 50%;
     background: var(--color-primary);
-    border: 3px solid #fff;
+    border: 3px solid #fff;        /* белая обводка — виден на любом фоне */
     box-shadow: 0 2px 8px rgba(26,86,232,.35);
     cursor: pointer;
     transition: transform var(--transition), box-shadow var(--transition);
@@ -142,6 +206,8 @@
     transform: scale(1.15);
     box-shadow: 0 3px 14px rgba(26,86,232,.45);
   }
+
+  /* Ползунок — Firefox */
   .lc-slider::-moz-range-thumb {
     width: 24px; height: 24px;
     border-radius: 50%;
@@ -151,6 +217,7 @@
     cursor: pointer;
   }
 
+  /* Подписи min / mid / max под слайдером */
   .lc-slider-ticks {
     display: flex;
     justify-content: space-between;
@@ -161,7 +228,11 @@
     color: var(--color-muted);
   }
 
-  /* ── Right card ───────────────────────────────────────────── */
+  /* ══════════════════════════════════════════════════════════════
+     6. ПРАВАЯ КАРТОЧКА — РЕЗУЛЬТАТЫ
+  ══════════════════════════════════════════════════════════════ */
+
+  /* Заголовок "НАШЕ ПРЕДЛОЖЕНИЕ" */
   .lc-card--offer h3 {
     font-size: 12px;
     font-weight: 600;
@@ -171,6 +242,7 @@
     letter-spacing: .6px;
   }
 
+  /* Сетка 2 колонки: "Ежемесячный платёж" | "Переплата" */
   .lc-offer-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -184,6 +256,7 @@
     margin-bottom: 4px;
   }
 
+  /* Крупное число — сама сумма платежа */
   .lc-offer-item__amount {
     font-size: 30px;
     font-weight: 700;
@@ -191,18 +264,21 @@
     line-height: 1;
   }
 
+  /* Подпись под суммой — "/ за 24 мес" */
   .lc-offer-item__sub {
     font-size: 12px;
     color: var(--color-muted);
     margin-top: 3px;
   }
 
+  /* Горизонтальный разделитель между результатами и CTA */
   .lc-divider {
     height: 1px;
     background: var(--color-border);
     margin-bottom: 24px;
   }
 
+  /* Заголовок призыва к действию */
   .lc-cta-title {
     font-size: 17px;
     font-weight: 700;
@@ -210,13 +286,24 @@
     margin-bottom: 6px;
   }
 
+  /* Подзаголовок призыва к действию */
   .lc-cta-sub {
     font-size: 13px;
     color: var(--color-muted);
     margin-bottom: 20px;
   }
 
-  /* ── Button ───────────────────────────────────────────────── */
+  /* ══════════════════════════════════════════════════════════════
+     7. КНОПКА (.lc-btn)
+     Универсальная — используется и в калькуляторе, и в модалке.
+
+     Hover: filter:brightness вместо захардкоженного hex-цвета —
+     работает с любым --color-primary без дополнительных правил.
+
+     Loading-состояние: через data-атрибут [data-loading], не класс —
+     атрибут не конфликтует с классами при динамических изменениях.
+     Спиннер добавляется через ::after без лишних DOM-элементов.
+  ══════════════════════════════════════════════════════════════ */
   .lc-btn {
     width: 100%;
     padding: 16px;
@@ -228,7 +315,6 @@
     font-size: 15px;
     font-weight: 600;
     cursor: pointer;
-    /* FIX: hover-цвет теперь через filter, не захардкоженный hex */
     transition: filter var(--transition), transform var(--transition), box-shadow var(--transition);
     box-shadow: 0 4px 18px rgba(26,86,232,.3);
     letter-spacing: .2px;
@@ -240,12 +326,12 @@
   }
   .lc-btn:active { transform: translateY(0); }
 
-  /* FIX: loading — отдельный data-атрибут вместо класса,
-     чтобы не ломать специфичность при сбросе */
+  /* Заблокированная кнопка во время запроса */
   .lc-btn[data-loading] {
     pointer-events: none;
     opacity: .7;
   }
+  /* Спиннер после текста кнопки во время загрузки */
   .lc-btn[data-loading]::after {
     content: '';
     display: inline-block;
@@ -258,14 +344,22 @@
     vertical-align: middle;
   }
 
+  /* Анимация вращения — используется в спиннерах кнопки и loading-overlay */
   @keyframes lc-spin { to { transform: rotate(360deg); } }
 
+  /* ══════════════════════════════════════════════════════════════
+     8. TOAST — уведомления
+     Скрыт по умолчанию (display:none).
+     Показывается добавлением модификатора класса через JS:
+       .lc-toast--success  — зелёный (успех)
+       .lc-toast--error    — красный (ошибка)
+  ══════════════════════════════════════════════════════════════ */
   .lc-toast {
     margin-top: 12px;
     padding: 10px 14px;
     border-radius: 8px;
     font-size: 13px;
-    display: none;
+    display: none;               /* скрыт пока нет модификатора */
   }
   .lc-toast--success {
     background: #edfaf1;
@@ -280,6 +374,7 @@
     display: block;
   }
 
+  /* Дисклеймер под кнопкой */
   .lc-disclaimer {
     font-size: 11px;
     color: var(--color-muted);
@@ -287,15 +382,26 @@
     margin-top: 16px;
   }
 
-  /* ── Animated number ──────────────────────────────────────── */
+  /* ══════════════════════════════════════════════════════════════
+     9. АНИМАЦИЯ ЦИФР
+     При пересчёте числа мигают (opacity 1 → 0 → 1).
+     Класс lc-num--updating добавляется/снимается в JS (animateNum).
+  ══════════════════════════════════════════════════════════════ */
   .lc-num { display: inline-block; transition: opacity .15s; }
   .lc-num--updating { opacity: 0; }
 
-  /* ── Loading overlay (показывается пока грузится таблица с API) ── */
+  /* ══════════════════════════════════════════════════════════════
+     10. LOADING OVERLAY
+     Показывается пока init() асинхронно загружает таблицу
+     удорожания с API ELMA365.
+     Атрибут [data-lc-loading] вешается на .lc-widget из JS.
+     После загрузки атрибут снимается — оверлей исчезает.
+  ══════════════════════════════════════════════════════════════ */
   .lc-widget[data-lc-loading] {
     position: relative;
-    pointer-events: none;
+    pointer-events: none;          /* блокируем взаимодействие во время загрузки */
   }
+  /* Полупрозрачный фон поверх виджета */
   .lc-widget[data-lc-loading]::after {
     content: '';
     position: absolute;
@@ -305,10 +411,10 @@
     backdrop-filter: blur(2px);
     z-index: 10;
   }
+  /* Бейдж со спиннером по центру overlay */
   .lc-loading-badge {
     position: absolute;
-    top: 50%;
-    left: 50%;
+    top: 50%; left: 50%;
     transform: translate(-50%, -50%);
     z-index: 11;
     background: var(--color-card);
@@ -317,13 +423,14 @@
     padding: 14px 22px;
     font-size: 13px;
     color: var(--color-muted);
-    display: none;
+    display: none;                 /* показывается только при [data-lc-loading] */
     align-items: center;
     gap: 10px;
     box-shadow: var(--shadow-card);
     white-space: nowrap;
   }
   .lc-widget[data-lc-loading] .lc-loading-badge { display: flex; }
+  /* Анимированный круг перед текстом бейджа */
   .lc-loading-badge::before {
     content: '';
     display: block;
@@ -334,18 +441,30 @@
     animation: lc-spin .7s linear infinite;
     flex-shrink: 0;
   }
-  /* ── Модальное окно с веб-формой ELMA365 ─────────────────── */
+
+  /* ══════════════════════════════════════════════════════════════
+     11. МОДАЛЬНОЕ ОКНО
+     Состоит из:
+       .lc-modal-backdrop  — тёмный полупрозрачный фон (fixed, весь экран)
+       .lc-modal           — белый контейнер формы по центру
+       .lc-modal__header   — строка с заголовком и крестиком
+       .lc-modal__body     — скроллируемая зона с полями формы
+       .lc-modal__footer   — прилипающая кнопка (не скроллится)
+
+     Открытие: backdrop получает класс .lc-modal--open
+     Закрытие: класс снимается (крестик / клик по фону / Escape)
+  ══════════════════════════════════════════════════════════════ */
   .lc-modal-backdrop {
-    display: none;
+    display: none;                 /* скрыт по умолчанию */
     position: fixed;
-    inset: 0;
+    inset: 0;                      /* растягиваем на весь экран */
     background: rgba(8, 20, 40, 0.55);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
-    z-index: 9000;
+    z-index: 9000;                 /* поверх всего контента страницы */
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 20px;                 /* отступы от краёв экрана на мобиле */
   }
   .lc-modal-backdrop.lc-modal--open {
     display: flex;
@@ -356,16 +475,17 @@
     to   { opacity: 1; }
   }
 
+  /* Контейнер модального окна */
   .lc-modal {
     background: var(--color-card);
     border-radius: var(--radius-card);
     box-shadow: 0 24px 80px rgba(8,20,40,.35);
     width: 100%;
     max-width: 600px;
-    max-height: 92vh;
+    max-height: 92vh;              /* не выходим за экран по высоте */
     display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    flex-direction: column;        /* header / body / footer вертикально */
+    overflow: hidden;              /* скругления не обрезаются контентом */
     box-sizing: border-box;
     animation: lc-modal-slide .24s cubic-bezier(.4,0,.2,1);
   }
@@ -374,13 +494,14 @@
     to   { transform: translateY(0);    opacity: 1; }
   }
 
+  /* Шапка модалки: заголовок + крестик */
   .lc-modal__header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 20px 24px 16px;
     border-bottom: 1px solid var(--color-border);
-    flex-shrink: 0;
+    flex-shrink: 0;                /* не сжимается когда body заполнен */
   }
   .lc-modal__title {
     font-size: 16px;
@@ -388,6 +509,7 @@
     color: var(--color-text);
     letter-spacing: -.2px;
   }
+  /* Кнопка закрытия (крестик) */
   .lc-modal__close {
     width: 32px; height: 32px;
     border: none;
@@ -408,8 +530,11 @@
     color: var(--color-text);
   }
 
+  /* Скроллируемая зона с полями.
+     overflow-x: hidden — убирает горизонтальный скролл,
+     который мог появляться из-за grid-инпутов. */
   .lc-modal__body {
-    flex: 1;
+    flex: 1;                       /* занимает всё доступное место между header и footer */
     overflow-y: auto;
     overflow-x: hidden;
     padding: 20px;
@@ -417,7 +542,7 @@
     width: 100%;
   }
 
-  /* Прилипающий футер — всегда виден, не скроллится */
+  /* Прилипающий футер — всегда виден, не уходит под скролл */
   .lc-modal__footer {
     flex-shrink: 0;
     padding: 14px 20px 20px;
@@ -427,9 +552,20 @@
     width: 100%;
   }
 
-  /* ── Форма внутри модалки ─────────────────────────────────── */
-  .lc-form { display: flex; flex-direction: column; gap: 16px; }
+  /* ══════════════════════════════════════════════════════════════
+     12. ФОРМА ЗАЯВКИ
+     Вертикальный flex-контейнер с gap между полями.
+     Секции разделяются .lc-form__divider и .lc-form__section-title.
 
+     Обязательные поля: добавьте data-required к .lc-form__field —
+     появится звёздочка в лейбле и валидация при отправке.
+
+     Readonly-поля (из калькулятора): пунктирная рамка,
+     серый фон — визуально отличаются от редактируемых.
+  ══════════════════════════════════════════════════════════════ */
+  .lc-form { display: flex; flex-direction: column; gap: 16px; width: 100%; box-sizing: border-box; }
+
+  /* Подзаголовок секции ("КОНТАКТНЫЕ ДАННЫЕ", "ПРЕДМЕТ ЛИЗИНГА") */
   .lc-form__section-title {
     font-size: 11px;
     font-weight: 600;
@@ -441,27 +577,31 @@
   }
   .lc-form__section-title:first-child { margin-top: 0; }
 
-  .lc-form { width: 100%; box-sizing: border-box; }
+  /* Строка с двумя полями рядом (телефон + email, стоимость + аванс) */
   .lc-form__row { display: grid; gap: 12px; width: 100%; box-sizing: border-box; }
   .lc-form__row--2 { grid-template-columns: 1fr 1fr; }
   @media (max-width: 460px) { .lc-form__row--2 { grid-template-columns: 1fr; } }
 
+  /* Обёртка одного поля: лейбл + инпут + текст ошибки */
   .lc-form__field { display: flex; flex-direction: column; gap: 5px; min-width: 0; box-sizing: border-box; }
 
+  /* Лейбл поля */
   .lc-form__label {
     font-size: 13px;
     color: var(--color-muted);
     font-weight: 500;
   }
-  /* Обязательные поля — добавьте атрибут data-required к .lc-form__field */
+  /* Звёздочка обязательного поля — появляется автоматически через CSS
+     когда у .lc-form__field есть атрибут data-required */
   .lc-form__field[data-required] .lc-form__label::after {
     content: ' *';
     color: #e53e3e;
   }
 
+  /* Поле ввода */
   .lc-form__input {
     width: 100%;
-    min-width: 0;
+    min-width: 0;            /* критично для grid: не растягивает колонку */
     box-sizing: border-box;
     padding: 11px 14px;
     border: 1.5px solid var(--color-border);
@@ -469,20 +609,25 @@
     font-family: 'Geologica', sans-serif;
     font-size: 15px;
     color: #1A1D2E;          /* введённый текст — насыщенный тёмный */
-    background: #ffffff;     /* белый фон — плейсхолдер не сливается */
+    background: #ffffff;     /* белый — плейсхолдер не сливается с фоном */
     outline: none;
     transition: border-color var(--transition), box-shadow var(--transition);
   }
-  .lc-form__input::placeholder { color: #b0b8cc; } /* плейсхолдер — заметно светлее текста */
+  /* Плейсхолдер заметно светлее введённого текста */
+  .lc-form__input::placeholder { color: #b0b8cc; }
+  /* Активное поле — синяя рамка с мягким свечением */
   .lc-form__input:focus {
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px rgba(8,62,99,.10);
     background: #fff;
   }
+  /* Поле с ошибкой — красная рамка */
   .lc-form__input--error {
     border-color: #e53e3e;
     box-shadow: 0 0 0 3px rgba(229,62,62,.10);
   }
+  /* Текст ошибки под полем — скрыт по умолчанию,
+     показывается CSS когда у поля [data-required] + класс --error на инпуте */
   .lc-form__error {
     font-size: 11px;
     color: #e53e3e;
@@ -490,6 +635,8 @@
   }
   .lc-form__field[data-required] .lc-form__input--error ~ .lc-form__error { display: block; }
 
+  /* Readonly-поля (стоимость, аванс, срок из калькулятора).
+     Пунктирная рамка и серый фон сигнализируют: "редактировать нельзя". */
   .lc-form__input[readonly] {
     background: #f4f6fb;
     color: var(--color-muted);
@@ -499,30 +646,39 @@
     box-sizing: border-box;
   }
 
+  /* Разделитель между секциями формы */
   .lc-form__divider {
     height: 1px;
     background: var(--color-border);
     margin: 4px 0;
   }
 
-  /* ── Чекбокс согласия ─────────────────────────────────────── */
+  /* ══════════════════════════════════════════════════════════════
+     13. ЧЕКБОКС СОГЛАСИЯ НА ОБРАБОТКУ ПЕРСОНАЛЬНЫХ ДАННЫХ
+     Полностью кастомный — браузерный вид скрыт через appearance:none.
+     Галочка рисуется через ::after с border-trick (два border-side).
+     Ошибка (не поставил галочку) — красная рамка + текст под чекбоксом.
+     Показ текста ошибки управляется JS через класс .lc-error--visible.
+  ══════════════════════════════════════════════════════════════ */
   .lc-form__consent { margin-top: 4px; }
 
+  /* Строка: чекбокс слева + текст справа, выровнены по верху */
   .lc-form__consent-label {
     display: flex;
     align-items: flex-start;
     gap: 10px;
     cursor: pointer;
-    user-select: none;
+    user-select: none;             /* текст не выделяется при клике */
   }
 
+  /* Кастомный чекбокс */
   .lc-form__checkbox {
     appearance: none;
     -webkit-appearance: none;
-    flex-shrink: 0;
+    flex-shrink: 0;                /* не сжимается если текст длинный */
     width: 18px;
     height: 18px;
-    margin-top: 1px;
+    margin-top: 2px;               /* выравниваем по первой строке текста */
     border: 1.5px solid var(--color-border);
     border-radius: 5px;
     background: var(--color-bg);
@@ -530,10 +686,12 @@
     transition: border-color var(--transition), background var(--transition);
     position: relative;
   }
+  /* Отмеченное состояние — синий фон */
   .lc-form__checkbox:checked {
     background: var(--color-primary);
     border-color: var(--color-primary);
   }
+  /* Галочка через CSS border-trick */
   .lc-form__checkbox:checked::after {
     content: '';
     position: absolute;
@@ -544,20 +702,24 @@
     border-left: none;
     transform: rotate(45deg);
   }
+  /* Фокус с клавиатуры — видимый контур для accessibility */
   .lc-form__checkbox:focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
   }
+  /* Чекбокс с ошибкой (не отмечен при отправке) */
   .lc-form__checkbox.lc-form__input--error {
     border-color: #e53e3e;
     box-shadow: 0 0 0 3px rgba(229,62,62,.10);
   }
 
+  /* Текст рядом с чекбоксом */
   .lc-form__consent-text {
-    font-size: 12px;
+    font-size: 14px;               /* ↑ увеличен с 12px — легче читать */
     color: var(--color-muted);
     line-height: 1.5;
   }
+  /* Ссылка на политику обработки персональных данных */
   .lc-form__consent-link {
     color: var(--color-primary);
     text-decoration: underline;
@@ -565,7 +727,9 @@
   }
   .lc-form__consent-link:hover { opacity: .75; }
 
-  /* Ошибка чекбокса — показывается через JS, не через CSS :has() для совместимости */
+  /* Текст ошибки под чекбоксом.
+     Показывается JS-ом через .lc-error--visible (не через CSS :has()
+     для совместимости со старыми браузерами). */
   #lf-consent-error { display: none; }
   #lf-consent-error.lc-error--visible { display: block; }
 </style>
@@ -573,11 +737,17 @@
 <body style="margin:0;padding:0;background:transparent;">
 
 <!--
-  Для встраивания на хост-страницу:
-  1. Скопируйте блок <style> и этот <div class="lc-widget"> в нужное место.
-  2. Подключите шрифт Geologica (тег <link> выше) в <head> хост-страницы.
-  3. Скопируйте блок <script> в конец страницы (или в отдельный .js-файл).
-  4. Вызовите LeasingCalculator.init('#leasingCalculator', { ... }) с вашим конфигом.
+  ═══════════════════════════════════════════════════════════════
+  КАК ВСТРОИТЬ НА САЙТ (без iframe):
+    1. Скопируйте блок <style> в <head> хост-страницы
+    2. Скопируйте этот <div class="lc-widget"> в нужное место
+    3. Подключите шрифт Geologica (тег <link> выше) в <head>
+    4. Скопируйте оба блока <script> в конец <body>
+    5. Вызов LeasingCalculator.init() уже внутри второго скрипта
+
+  КАК ВСТРОИТЬ ЧЕРЕЗ IFRAME:
+    <iframe src="URL_ФАЙЛА" style="width:100%;height:560px;border:none;" loading="lazy"></iframe>
+  ═══════════════════════════════════════════════════════════════
 -->
 
 <div class="lc-widget" id="leasingCalculator" data-lc-loading>
@@ -589,7 +759,7 @@
   <div class="lc-card lc-card--inputs">
     <h2>Рассчитайте свой платёж</h2>
 
-    <!-- Equipment cost -->
+    <!-- Стоимость оборудования — непрерывный диапазон от costMin до costMax -->
     <div class="lc-field">
       <div class="lc-field__header">
         <span class="lc-field__label">Стоимость оборудования</span>
@@ -606,7 +776,7 @@
       </div>
     </div>
 
-    <!-- Down payment -->
+    <!-- Первоначальный взнос — дискретные шаги из массива downPaymentOptions -->
     <div class="lc-field">
       <div class="lc-field__header">
         <span class="lc-field__label">
@@ -627,7 +797,7 @@
       </div>
     </div>
 
-    <!-- Leasing term -->
+    <!-- Срок лизинга — дискретные шаги из массива termOptions -->
     <div class="lc-field">
       <div class="lc-field__header">
         <span class="lc-field__label">Срок лизинга</span>
@@ -654,6 +824,7 @@
       <div class="lc-offer-item">
         <div class="lc-offer-item__label">Ежемесячный платёж:</div>
         <div class="lc-offer-item__amount">
+          <!-- data-lc — атрибут для поиска элемента из JS без id-конфликтов -->
           <span class="lc-num" data-lc="resultMonthly">—</span> ₽
         </div>
       </div>
@@ -672,12 +843,13 @@
     <div class="lc-cta-sub">Оставьте заявку — подберём удобный тариф</div>
 
     <button class="lc-btn" data-lc="btnSubmit">Отправить заявку</button>
+    <!-- Toast калькулятора — сейчас не используется (оставлен для возможных уведомлений) -->
     <div class="lc-toast" data-lc="toast"></div>
 
     <p class="lc-disclaimer">
-      Стоимость предмета лизинга и расчёты через калькулятор являются
-      предварительными. Для точного определения процентной ставки обратитесь
-      к менеджеру в вашем регионе.
+      Приведенные расчеты через калькулятор являются предварительными.
+      Для точного определения условий лизинга, пожалуйста, обратитесь к менеджеру в вашем регионе.
+      Калькулятор не предназначен для расчетов по 44-ФЗ и 223-ФЗ.
     </p>
   </div>
 
@@ -687,11 +859,13 @@
 /**
  * LeasingCalculator — самодостаточный виджет без глобальных зависимостей.
  *
- * Для встраивания подключите этот скрипт и вызовите:
- *   LeasingCalculator.init('#leasingCalculator', config)
+ * Паттерн: IIFE (Immediately Invoked Function Expression) —
+ * весь код внутри замыкания, ничего не утекает в window.
  *
- * Все состояние и DOM-ссылки хранятся внутри замыкания init(),
- * поэтому несколько экземпляров на одной странице работают независимо.
+ * Публичный интерфейс: LeasingCalculator.init(selector, config)
+ *
+ * Несколько экземпляров на одной странице работают независимо —
+ * каждый вызов init() создаёт собственное замыкание с DOM-ссылками.
  */
 const LeasingCalculator = (() => {
 
@@ -702,16 +876,22 @@ const LeasingCalculator = (() => {
     costMax: 30_000_000,
     costStep: 10_000,
 
-    /** Доступные значения первоначального взноса (%) */
+    /**
+     * Доступные значения первоначального взноса (%).
+     * Слайдер шагает по индексам этого массива, не по числовому диапазону.
+     */
     downPaymentOptions: [10, 15, 20, 25, 30, 35, 40, 45, 49],
 
-    /** Доступные сроки лизинга (месяцы) */
+    /**
+     * Доступные сроки лизинга (месяцы).
+     * Аналогично — слайдер шагает по индексам.
+     */
     termOptions: [12, 18, 24, 36, 48, 60],
 
     /**
-     * Таблица удорожания — fallback, если запрос к API не удался.
-     * Ключ: "<срок>_<взнос%>", значение: коэффициент к (стоимость − взнос).
-     * В норме таблица загружается из API при инициализации.
+     * Таблица удорожания — FALLBACK на случай недоступности API.
+     * В норме перезаписывается данными из ELMA365 при инициализации.
+     * Ключ: "<срок>_<аванс%>", значение: коэффициент к (стоимость − взнос).
      */
     appreciationTable: {
       "12_10": 1.14, "12_15": 1.12, "12_20": 1.11, "12_25": 1.10, "12_30": 1.09, "12_35": 1.08, "12_40": 1.07, "12_45": 1.06, "12_49": 1.05,
@@ -721,24 +901,25 @@ const LeasingCalculator = (() => {
       "48_10": 1.56, "48_15": 1.53, "48_20": 1.50, "48_25": 1.47, "48_30": 1.44, "48_35": 1.41, "48_40": 1.38, "48_45": 1.35, "48_49": 1.31,
       "60_10": 1.70, "60_15": 1.66, "60_20": 1.62, "60_25": 1.59, "60_30": 1.55, "60_35": 1.51, "60_40": 1.47, "60_45": 1.44, "60_49": 1.39,
     },
-    appreciationDefault: 1.20,
+    appreciationDefault: 1.20,  /* fallback если комбинация не найдена в таблице */
 
     /**
      * URL и токен для загрузки таблицы удорожания из ELMA365.
-     * Таблица берётся из item.price_appreciation_table.rows.
-     * Строки имеют вид: { advance: 10, term_12: 1.14, term_24: 1.26, ... }
+     * Данные берутся из item.price_appreciation_table.rows ответа API.
      */
-    appreciationApiUrl: "https://5zekdxettfojc.elma365.ru/pub/v1/app/_system_catalogs/global_consts/01924cbe-e082-702d-ac58-b5536152c584/get",
+    appreciationApiUrl:   "https://5zekdxettfojc.elma365.ru/pub/v1/app/_system_catalogs/global_consts/01924cbe-e082-702d-ac58-b5536152c584/get",
     appreciationApiToken: "2dbf3099-533a-4082-9126-34241b0c8fe3",
 
-    /** URL API для отправки заявки. Замените на реальный. */
+    /**
+     * URL для прямой отправки лида (если нет onSubmit-коллбэка).
+     * Оставьте пустым если используете onSubmit.
+     */
     apiLeadUrl: "",
 
     /**
-     * Коллбэк вместо fetch-запроса (опционально).
-     * Получает payload, должен вернуть Promise.
+     * Коллбэк, вызываемый вместо fetch при нажатии кнопки.
+     * Получает payload с параметрами калькулятора.
      * Если задан — apiLeadUrl игнорируется.
-     *
      * @param {Object} payload
      * @returns {Promise<void>}
      */
@@ -746,11 +927,17 @@ const LeasingCalculator = (() => {
   };
 
   /* ── Утилиты ──────────────────────────────────────────────── */
+
+  /** Форматирование числа в читаемый вид: 600000 → "600 000" */
   const fmt = n => Math.round(n).toLocaleString("ru-RU");
 
+  /**
+   * Слияние пользовательского конфига с дефолтным.
+   * appreciationTable мержится глубоко — пользователь может
+   * переопределить только часть строк таблицы.
+   */
   function mergeConfig(userConfig) {
     return Object.assign({}, DEFAULTS, userConfig, {
-      // Глубокое слияние таблицы удорожания, если пользователь передал свою
       appreciationTable: Object.assign(
         {},
         DEFAULTS.appreciationTable,
@@ -759,25 +946,88 @@ const LeasingCalculator = (() => {
     });
   }
 
-  /* ── Расчёт ───────────────────────────────────────────────── */
+  /* ══════════════════════════════════════════════════════════════
+   * РАСЧЁТНЫЕ ФОРМУЛЫ
+   * ══════════════════════════════════════════════════════════════
+   *
+   * Общая логика:
+   *   1. Считаем сумму аванса из стоимости и процента взноса
+   *   2. Тело лизинга = стоимость минус аванс
+   *   3. Из таблицы удорожания берём коэффициент для пары (срок + аванс%)
+   *   4. Общая сумма выплат = тело × коэффициент
+   *   5. Ежемесячный платёж = общая сумма / срок в месяцах
+   *   6. Переплата = общая сумма − тело лизинга
+   *
+   * Коэффициенты удорожания хранятся в DEFAULTS.appreciationTable
+   * и загружаются с API при инициализации (price_appreciation_table).
+   * ══════════════════════════════════════════════════════════════ */
+
+  /**
+   * Возвращает коэффициент удорожания из таблицы.
+   * Ключ поиска: "<срок>_<аванс%>", например "24_20".
+   * Если комбинация не найдена — используется appreciationDefault.
+   *
+   * Чтобы изменить логику подбора коэффициента (например, добавить
+   * интерполяцию между значениями) — редактируйте эту функцию.
+   */
   function getAppreciation(cfg, term, downPct) {
     const key = `${term}_${downPct}`;
     return cfg.appreciationTable[key] ?? cfg.appreciationDefault;
   }
 
+  /**
+   * Основной расчёт лизинговых платежей.
+   *
+   * @param cfg      — конфиг с таблицей удорожания
+   * @param cost     — полная стоимость предмета лизинга (₽)
+   * @param downPct  — первоначальный взнос в процентах (например 20 = 20%)
+   * @param term     — срок лизинга в месяцах (например 24)
+   *
+   * Формулы:
+   *
+   *   down    = cost × downPct / 100
+   *             └─ сумма аванса в рублях
+   *             └─ чтобы убрать аванс совсем — замените на: const down = 0
+   *
+   *   body    = cost − down
+   *             └─ тело лизинга (сумма, которую финансирует лизингодатель)
+   *
+   *   appr    = таблица[term][downPct]  (коэффициент удорожания, например 1.26)
+   *             └─ показывает, во сколько раз вырастет тело за весь срок
+   *             └─ значения берутся из appreciationTable / API ELMA365
+   *
+   *   total   = cost × appr − down
+   *             └─ итоговая сумма всех лизинговых платежей
+   *             └─ ВНИМАНИЕ: коэффициент применяется к полной стоимости (cost),
+   *                а не к телу (body) — это изменение внесено пользователем
+   *             └─ исходная формула была: total = body × appr
+   *
+   *   monthly = total / term
+   *             └─ равномерный ежемесячный платёж
+   *             └─ для аннуитетного расчёта замените на формулу PMT:
+   *                  const r = annualRate / 12 / 100;
+   *                  monthly = body * r / (1 - Math.pow(1 + r, -term));
+   *
+   *   overpay = total − body
+   *             └─ переплата сверх тела лизинга (стоимость финансирования)
+   *             └─ в % от тела: overpayPct = (appr - 1) * 100
+   */
   function calculate(cfg, cost, downPct, term) {
-    const down    = cost * downPct / 100;
-    const body    = cost - down;
-    const appr    = getAppreciation(cfg, term, downPct);
-    const total   = body * appr;
-    const monthly = total / term;
-    const overpay = total - body;
+    const down    = cost * downPct / 100;              // аванс, ₽
+    const body    = cost - down;                       // тело лизинга, ₽
+    const appr    = getAppreciation(cfg, term, downPct); // коэффициент удорожания
+    const total   = cost * appr - down;               // сумма всех платежей, ₽ (коэфф. от полной стоимости)
+    const monthly = total / term;                     // ежемесячный платёж, ₽
+    const overpay = total - body;                     // переплата, ₽
     return { down, monthly, overpay, total, body };
   }
 
-  /* ── Анимация цифр (с отменой предыдущего таймера) ──────── */
-  // FIX: накапливающиеся setTimeout при быстром движении слайдера
-  //      решены через хранение id таймера на самом элементе
+  /**
+   * Плавная смена числа в элементе: мигание через opacity.
+   * Хранит id таймера на самом элементе (_lcTimer) —
+   * при быстрых изменениях отменяет предыдущий вызов,
+   * избегая гонки и накопления setTimeout.
+   */
   function animateNum(el, newText) {
     if (el._lcTimer) clearTimeout(el._lcTimer);
     el.classList.add("lc-num--updating");
@@ -788,15 +1038,22 @@ const LeasingCalculator = (() => {
     }, 120);
   }
 
-  /* ── Заливка трека слайдера ───────────────────────────────── */
+  /**
+   * Заливка заполненной части трека слайдера цветом.
+   * CSS не умеет окрашивать часть трека нативно —
+   * делаем через inline linear-gradient от 0 до позиции ползунка.
+   */
   function updateFill(slider, primaryColor) {
     const pct = (slider.value - slider.min) / (slider.max - slider.min) * 100;
     slider.style.background =
       `linear-gradient(to right, ${primaryColor} ${pct}%, var(--color-track) ${pct}%)`;
   }
 
-  /* ── Подписи делений ──────────────────────────────────────── */
-  // FIX: средняя метка cost теперь вычисляется динамически, не захардкожена
+  /**
+   * Форматирование подписи делений стоимости:
+   *   600000  → "600 тыс"
+   *   1500000 → "1,5 млн"
+   */
   function costLabel(v) {
     if (v >= 1_000_000) return (v / 1_000_000).toLocaleString("ru-RU", { maximumFractionDigits: 1 }) + " млн";
     return (v / 1_000).toLocaleString("ru-RU", { maximumFractionDigits: 0 }) + " тыс";
@@ -812,9 +1069,7 @@ const LeasingCalculator = (() => {
    * Строка API: { advance: 10, term_12: 1.14, term_24: 1.26, ... }
    * Поддерживаемые ключи срока: term_12, term_18, term_24, term_36, term_48, term_60.
    *
-   * @param {string} url    — URL эндпоинта
-   * @param {string} token  — Bearer-токен авторизации
-   * @returns {Promise<Object|null>} плоская таблица или null при ошибке
+   * При любой ошибке возвращает null — init() использует fallback из DEFAULTS.
    * ════════════════════════════════════════════════════════════ */
   async function fetchAppreciationTable(url, token) {
     try {
@@ -830,13 +1085,13 @@ const LeasingCalculator = (() => {
 
       const json = await resp.json();
 
-      // Достаём rows из вложенного объекта
       const rows = json?.item?.price_appreciation_table?.rows;
       if (!Array.isArray(rows) || rows.length === 0) {
         throw new Error("price_appreciation_table.rows пуст или отсутствует");
       }
 
-      // Маппим строки в плоскую таблицу { "term_advance": coefficient }
+      /* Преобразуем строки вида { advance: 10, term_12: 1.14, ... }
+         в плоский объект { "12_10": 1.14, ... } */
       const TERM_KEYS = [12, 18, 24, 36, 48, 60];
       const table = {};
 
@@ -845,10 +1100,10 @@ const LeasingCalculator = (() => {
         if (advance == null) continue;
 
         for (const term of TERM_KEYS) {
-          const apiKey = `term_${term}`;       // term_12, term_24 …
+          const apiKey = `term_${term}`;        // "term_12", "term_24" …
           const val = row[apiKey];
           if (val != null) {
-            table[`${term}_${advance}`] = val; // "12_10", "24_25" …
+            table[`${term}_${advance}`] = val;  // "12_10", "24_25" …
           }
         }
       }
@@ -885,7 +1140,7 @@ const LeasingCalculator = (() => {
       return;
     }
 
-    /* 2. Показать loading-состояние (атрибут уже есть в HTML, но ставим явно на случай JS-инициализации) */
+    /* 2. Показать loading-состояние */
     root.setAttribute("data-lc-loading", "");
 
     /* 3. Загрузить таблицу удорожания с API */
@@ -897,7 +1152,7 @@ const LeasingCalculator = (() => {
       remoteTable = await fetchAppreciationTable(apiUrl, apiToken);
     }
 
-    /* 4. Слить конфиг — remote-таблица перекрывает fallback из DEFAULTS */
+    /* 4. Слить конфиг — remote-таблица перекрывает fallback */
     const cfg = mergeConfig({
       ...userConfig,
       ...(remoteTable ? { appreciationTable: remoteTable } : {}),
@@ -906,11 +1161,12 @@ const LeasingCalculator = (() => {
     /* 5. Снять loading-оверлей */
     root.removeAttribute("data-lc-loading");
 
-    /* 6. Получить CSS-переменную --color-primary для заливки слайдеров */
+    /* 6. Читаем --color-primary из CSS для заливки трека слайдеров.
+          Делаем ПОСЛЕ снятия loading, чтобы стили точно применились. */
     const primaryColor = getComputedStyle(root)
       .getPropertyValue("--color-primary").trim() || "#083e63";
 
-    /* 7. Собрать DOM-ссылки внутри root через data-lc (не id — безопасно для нескольких экземпляров) */
+    /* 7. DOM-ссылки через data-lc атрибуты (не id — безопасно для нескольких экземпляров) */
     const q = key => root.querySelector(`[data-lc="${key}"]`);
 
     const sliderCost  = q("sliderCost");
@@ -926,12 +1182,13 @@ const LeasingCalculator = (() => {
     const btnSubmit   = q("btnSubmit");
     const toast       = q("toast");
 
-    /* 8. Настроить слайдеры */
+    /* 8. Настроить диапазоны слайдеров */
     sliderCost.min   = cfg.costMin;
     sliderCost.max   = cfg.costMax;
     sliderCost.step  = cfg.costStep;
     sliderCost.value = cfg.costMin;
 
+    /* Слайдеры аванса и срока — индексы в массивах, не сами значения */
     sliderDown.min   = 0;
     sliderDown.max   = cfg.downPaymentOptions.length - 1;
     sliderDown.value = 0;
@@ -940,7 +1197,7 @@ const LeasingCalculator = (() => {
     sliderTerm.max   = cfg.termOptions.length - 1;
     sliderTerm.value = 0;
 
-    /* 9. Метки делений */
+    /* 9. Подписи делений (min / mid / max) под каждым слайдером */
     const midCost = Math.round((cfg.costMin + cfg.costMax) / 2);
     q("tickCostMin").textContent = costLabel(cfg.costMin);
     q("tickCostMid").textContent = costLabel(midCost);
@@ -956,7 +1213,7 @@ const LeasingCalculator = (() => {
     q("tickTermMid").textContent = termOpts[Math.floor(termOpts.length / 2)] + " мес";
     q("tickTermMax").textContent = termOpts[termOpts.length - 1] + " мес";
 
-    /* 10. Функция отрисовки */
+    /* 10. Функция отрисовки — вызывается при каждом движении слайдера */
     function render() {
       const cost    = Number(sliderCost.value);
       const downPct = cfg.downPaymentOptions[Number(sliderDown.value)];
@@ -977,21 +1234,22 @@ const LeasingCalculator = (() => {
       updateFill(sliderTerm, primaryColor);
     }
 
-    /* 11. Подписка на события */
+    /* 11. Подписка на события слайдеров */
     sliderCost.addEventListener("input", render);
     sliderDown.addEventListener("input", render);
     sliderTerm.addEventListener("input", render);
 
-    /* 12. Первичная отрисовка */
+    /* 12. Первичная отрисовка при загрузке */
     render();
 
-    /* 13. Обработчик отправки заявки */
+    /* 13. Обработчик кнопки "Отправить заявку" */
     async function handleSubmit() {
       const cost    = Number(sliderCost.value);
       const downPct = cfg.downPaymentOptions[Number(sliderDown.value)];
       const term    = cfg.termOptions[Number(sliderTerm.value)];
       const { down, monthly, overpay } = calculate(cfg, cost, downPct, term);
 
+      /* Payload для передачи в onSubmit или прямого fetch */
       const payload = {
         equipment_cost:      cost,
         down_payment_pct:    downPct,
@@ -1005,7 +1263,7 @@ const LeasingCalculator = (() => {
 
       try {
         if (typeof cfg.onSubmit === "function") {
-          await cfg.onSubmit(payload);
+          await cfg.onSubmit(payload);  /* передаём управление в LcModal.open() */
         } else if (cfg.apiLeadUrl) {
           const resp = await fetch(cfg.apiLeadUrl, {
             method: "POST",
@@ -1023,7 +1281,7 @@ const LeasingCalculator = (() => {
 
     btnSubmit.addEventListener("click", handleSubmit);
 
-    /* 14. Публичный API экземпляра */
+    /* 14. Публичный API экземпляра — для внешнего управления */
     return {
       /** Снять все слушатели и очистить таймеры анимации */
       destroy() {
@@ -1038,17 +1296,14 @@ const LeasingCalculator = (() => {
     };
   }
 
-  /* ── Публичный интерфейс модуля ──────────────────────────── */
   return { init };
 
 })();
-
-
 </script>
 
 <!-- ── Модальное окно с формой заявки ───────────────────────
-     Собственная форма — не зависит от ELMA365 widget.js.
-     Данные из калькулятора подтягиваются автоматически.
+     Расположено ВНЕ .lc-widget — position:fixed работает
+     относительно viewport, а не контейнера виджета.
 ────────────────────────────────────────────────────────── -->
 <div class="lc-modal-backdrop" id="lcModalBackdrop" role="dialog"
      aria-modal="true" aria-label="Форма заявки">
@@ -1058,11 +1313,12 @@ const LeasingCalculator = (() => {
       <button class="lc-modal__close" id="lcModalClose" aria-label="Закрыть">✕</button>
     </div>
     <div class="lc-modal__body">
+      <!-- novalidate — отключаем браузерную валидацию, используем свою -->
       <form class="lc-form" id="lcLeadForm" novalidate>
 
         <p class="lc-form__section-title">Контактные данные</p>
 
-        <!-- ФИО -->
+        <!-- ФИО — парсится в {lastname, firstname, middlename} при отправке -->
         <div class="lc-form__field" data-field="fio">
           <label class="lc-form__label" for="lf-fio">ФИО</label>
           <input class="lc-form__input" id="lf-fio" name="fio"
@@ -1071,34 +1327,38 @@ const LeasingCalculator = (() => {
         </div>
 
         <div class="lc-form__row lc-form__row--2">
-          <!-- Телефон -->
           <div class="lc-form__field" data-field="phone">
             <label class="lc-form__label" for="lf-phone">Телефон</label>
             <input class="lc-form__input" id="lf-phone" name="phone"
                    type="tel" placeholder="+7 (999) 000-00-00" autocomplete="tel">
-            <span class="lc-form__error">Заполните поле</span>
+            <!-- data-error-required / data-error-format — тексты для разных типов ошибок -->
+            <span class="lc-form__error"
+                  data-error-required="Заполните поле"
+                  data-error-format="Введите корректный номер телефона">Заполните поле</span>
           </div>
-          <!-- Email -->
           <div class="lc-form__field" data-field="email">
             <label class="lc-form__label" for="lf-email">Электронная почта</label>
             <input class="lc-form__input" id="lf-email" name="email"
                    type="email" placeholder="mail@example.com" autocomplete="email">
-            <span class="lc-form__error">Заполните поле</span>
+            <span class="lc-form__error"
+                  data-error-required="Заполните поле"
+                  data-error-format="Введите корректный e-mail">Заполните поле</span>
           </div>
         </div>
 
-        <!-- ИНН -->
+        <!-- inputmode="numeric" — цифровая клавиатура на мобиле -->
         <div class="lc-form__field" data-field="inn">
           <label class="lc-form__label" for="lf-inn">ИНН</label>
           <input class="lc-form__input" id="lf-inn" name="inn"
                  type="text" placeholder="1234567890" inputmode="numeric" maxlength="12">
-          <span class="lc-form__error">Заполните поле</span>
+          <span class="lc-form__error"
+                data-error-required="Заполните поле"
+                data-error-format="ИНН должен содержать 10 или 12 цифр">Заполните поле</span>
         </div>
 
         <div class="lc-form__divider"></div>
         <p class="lc-form__section-title">Предмет лизинга</p>
 
-        <!-- Наименование предмета лизинга -->
         <div class="lc-form__field" data-field="nameSubjectLeasing">
           <label class="lc-form__label" for="lf-name">Наименование предмета лизинга</label>
           <input class="lc-form__input" id="lf-name" name="nameSubjectLeasing"
@@ -1106,14 +1366,13 @@ const LeasingCalculator = (() => {
           <span class="lc-form__error">Заполните поле</span>
         </div>
 
+        <!-- readonly-поля — заполняются из калькулятора при открытии модалки -->
         <div class="lc-form__row lc-form__row--2">
-          <!-- Стоимость — из калькулятора, readonly -->
           <div class="lc-form__field" data-field="price">
             <label class="lc-form__label" for="lf-price">Стоимость, ₽</label>
             <input class="lc-form__input" id="lf-price" name="price"
                    type="text" readonly tabindex="-1">
           </div>
-          <!-- Аванс % — из калькулятора, readonly -->
           <div class="lc-form__field" data-field="avansePart">
             <label class="lc-form__label" for="lf-advance">Аванс, %</label>
             <input class="lc-form__input" id="lf-advance" name="avansePart"
@@ -1121,15 +1380,13 @@ const LeasingCalculator = (() => {
           </div>
         </div>
 
-        <!-- Срок лизинга — из калькулятора, readonly -->
         <div class="lc-form__field" data-field="leasingTerm">
           <label class="lc-form__label" for="lf-term">Срок лизинга, мес.</label>
           <input class="lc-form__input" id="lf-term" name="leasingTerm"
                  type="text" readonly tabindex="-1">
         </div>
 
-
-        <!-- Согласие на обработку персональных данных -->
+        <!-- Чекбокс согласия — всегда обязателен (валидируется в JS) -->
         <div class="lc-form__field lc-form__consent" data-field="consent">
           <label class="lc-form__consent-label">
             <input class="lc-form__checkbox" type="checkbox" id="lf-consent" name="consent">
@@ -1139,12 +1396,15 @@ const LeasingCalculator = (() => {
                  class="lc-form__consent-link">обработку персональных данных</a>
             </span>
           </label>
+          <!-- Показывается JS-ом через .lc-error--visible если не отмечен -->
           <span class="lc-form__error" id="lf-consent-error">Необходимо ваше согласие</span>
         </div>
 
       </form>
     </div>
-    <!-- Футер с кнопкой прилипает к низу, не скроллится -->
+
+    <!-- Кнопка вынесена в футер — не уходит под скролл.
+         type="submit" form="lcLeadForm" — связана с формой через атрибут form -->
     <div class="lc-modal__footer">
       <div class="lc-toast" id="lcLeadToast" style="margin:0 0 10px;"></div>
       <button class="lc-btn" type="submit" form="lcLeadForm" id="lcLeadSubmit">Отправить заявку</button>
@@ -1156,14 +1416,14 @@ const LeasingCalculator = (() => {
 /* ════════════════════════════════════════════════════════════
  * ██ МОДАЛЬНОЕ ОКНО — собственная форма заявки ██
  *
- * open(calcState) — принимает текущие значения калькулятора
- * и подставляет их в readonly-поля формы.
+ * Паттерн тот же что у LeasingCalculator — IIFE,
+ * всё внутри замыкания, наружу только { open, close }.
  *
- * Отправка: POST /app/_clients/_opportunities/create
- * Токен: Bearer в заголовке Authorization.
+ * open(calcState) — вызывается из LeasingCalculator.onSubmit,
+ *   принимает значения калькулятора и вставляет в readonly-поля.
  *
- * Чтобы сделать поле обязательным — добавьте атрибут
- * data-required к нужному .lc-form__field в разметке выше.
+ * Отправка: POST на ELMA365 /pub/v1/app/_clients/_opportunities/create
+ * После успеха: toast на 3 секунды → автозакрытие → сброс полей.
  * ════════════════════════════════════════════════════════════ */
 const LcModal = (() => {
   const API_BASE  = "https://5zekdxettfojc.elma365.ru";
@@ -1176,7 +1436,11 @@ const LcModal = (() => {
   const submitBtn = document.getElementById("lcLeadSubmit");
   const toast     = document.getElementById("lcLeadToast");
 
-  /* ── Парсинг ФИО ── */
+  /**
+   * Парсинг строки ФИО в объект ELMA365.
+   * "Иванов Иван Иванович" → { lastname, firstname, middlename }
+   * Если частей меньше трёх — недостающие будут пустыми строками.
+   */
   function parseFio(str) {
     const parts = (str || "").trim().split(/\s+/);
     return {
@@ -1186,23 +1450,91 @@ const LcModal = (() => {
     };
   }
 
-  /* ── Валидация обязательных полей ── */
+  /**
+   * Правила форматной валидации для конкретных полей.
+   *
+   * Телефон: допускаем российские и международные форматы.
+   *   Логика: убираем всё кроме цифр и +, проверяем что цифр 10-11
+   *   (российские без кода: 9161234567 — 10 цифр;
+   *    с кодом: 79161234567 или +79161234567 — 11 цифр)
+   *
+   * Email: стандартная проверка наличия @ и домена с точкой.
+   *
+   * ИНН: только цифры, длина 10 (юрлица) или 12 (физлица/ИП).
+   */
+  const FIELD_VALIDATORS = {
+    "lf-phone": (val) => {
+      if (!val) return true;                          // пустое — не форматная ошибка
+      const digits = val.replace(/\D/g, "");         // оставляем только цифры
+      return digits.length >= 10 && digits.length <= 11;
+    },
+    "lf-email": (val) => {
+      if (!val) return true;
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val); // минимальная проверка формата
+    },
+    "lf-inn": (val) => {
+      if (!val) return true;
+      return /^\d{10}$|^\d{12}$/.test(val);          // ровно 10 или 12 цифр
+    },
+  };
+
+  /**
+   * Установить/снять ошибку на поле с нужным текстом.
+   * errorType: "required" | "format" | null (снять ошибку)
+   */
+  function setFieldError(input, errorType) {
+    const errEl = input.closest(".lc-form__field")?.querySelector(".lc-form__error");
+    if (errorType) {
+      input.classList.add("lc-form__input--error");
+      if (errEl) {
+        /* Берём текст из data-атрибута если есть, иначе дефолт */
+        errEl.textContent = errEl.dataset[`error${errorType.charAt(0).toUpperCase()}${errorType.slice(1)}`]
+          || (errorType === "required" ? "Заполните поле" : "Неверный формат");
+      }
+    } else {
+      input.classList.remove("lc-form__input--error");
+    }
+  }
+
+  /**
+   * Валидация формы перед отправкой.
+   *
+   * Порядок проверки для каждого поля:
+   *   1. Если поле data-required и пустое → ошибка "required"
+   *   2. Если поле заполнено и есть форматный валидатор → ошибка "format"
+   *   3. Иначе → ошибки нет
+   *
+   * Чекбокс согласия проверяется отдельно — всегда обязателен.
+   * Возвращает true если все проверки прошли.
+   */
   function validate() {
     let ok = true;
 
-    // Обязательные текстовые поля (data-required на field)
-    form.querySelectorAll(".lc-form__field[data-required]").forEach(field => {
-      const input = field.querySelector(".lc-form__input");
-      if (!input || input.value.trim() === "") {
-        input.classList.add("lc-form__input--error");
+    /* Все поля с потенциальной валидацией — обязательные и с форматными правилами */
+    const fieldsToCheck = new Set([
+      ...form.querySelectorAll(".lc-form__field[data-required] .lc-form__input"),
+      ...Object.keys(FIELD_VALIDATORS).map(id => document.getElementById(id)).filter(Boolean),
+    ]);
+
+    fieldsToCheck.forEach(input => {
+      if (!input || input.readOnly) return;           // readonly-поля не валидируем
+      const val = input.value.trim();
+      const isRequired = input.closest(".lc-form__field[data-required]");
+      const validator  = FIELD_VALIDATORS[input.id];
+
+      if (isRequired && !val) {
+        setFieldError(input, "required");
+        ok = false;
+      } else if (val && validator && !validator(val)) {
+        setFieldError(input, "format");
         ok = false;
       } else {
-        input.classList.remove("lc-form__input--error");
+        setFieldError(input, null);
       }
     });
 
-    // Чекбокс согласия — всегда обязателен
-    const consent = document.getElementById("lf-consent");
+    /* Чекбокс согласия — всегда обязателен */
+    const consent    = document.getElementById("lf-consent");
     const consentErr = document.getElementById("lf-consent-error");
     if (!consent.checked) {
       consent.classList.add("lc-form__input--error");
@@ -1216,12 +1548,31 @@ const LcModal = (() => {
     return ok;
   }
 
-  /* ── Сброс ошибок при вводе / изменении ── */
+  /**
+   * При вводе в поле:
+   *   - если поле было пустым (ошибка required) — снимаем ошибку сразу
+   *   - если поле заполнено и есть форматный валидатор — проверяем формат live
+   *     (ошибка формата показывается только если поле не пустое — не мешаем при вводе)
+   */
   form.addEventListener("input", e => {
-    if (e.target.classList.contains("lc-form__input")) {
-      e.target.classList.remove("lc-form__input--error");
+    const input = e.target;
+    if (!input.classList.contains("lc-form__input") || input.readOnly) return;
+
+    const val       = input.value.trim();
+    const validator = FIELD_VALIDATORS[input.id];
+
+    if (!val) {
+      /* Поле очищено — убираем форматную ошибку, required покажется при submit */
+      setFieldError(input, null);
+    } else if (validator && !validator(val)) {
+      /* Неверный формат — показываем ошибку в реальном времени */
+      setFieldError(input, "format");
+    } else {
+      /* Всё хорошо — снимаем любую ошибку */
+      setFieldError(input, null);
     }
   });
+  /* Снимаем ошибку чекбокса при изменении */
   form.addEventListener("change", e => {
     if (e.target.id === "lf-consent") {
       e.target.classList.remove("lc-form__input--error");
@@ -1229,43 +1580,47 @@ const LcModal = (() => {
     }
   });
 
-  /* ── Сборка payload ── */
+  /**
+   * Сборка payload для ELMA365.
+   * Пустые поля не включаются в объект (условия if перед присвоением).
+   * Числовые поля readonly конвертируются из строки в Number.
+   */
   function buildPayload() {
     const g = id => document.getElementById(id).value.trim();
 
-    const fioStr   = g("lf-fio");
-    const phone    = g("lf-phone");
-    const email    = g("lf-email");
-    const inn      = g("lf-inn");
-    const name     = g("lf-name");
-    const price    = Number(g("lf-price").replace(/\s/g, "")) || undefined;
-    const advance  = Number(g("lf-advance")) || undefined;
-    const term     = Number(g("lf-term"))    || undefined;
+    const fioStr  = g("lf-fio");
+    const phone   = g("lf-phone");
+    const email   = g("lf-email");
+    const inn     = g("lf-inn");
+    const name    = g("lf-name");
+    const price   = Number(g("lf-price").replace(/\s/g, "")) || undefined;  /* убираем пробелы из "600 000" */
+    const advance = Number(g("lf-advance")) || undefined;
+    const term    = Number(g("lf-term"))    || undefined;
 
     const payload = { context: {} };
     const ctx = payload.context;
 
-    if (inn)    ctx.inn           = inn;
-    if (fioStr) ctx.fio           = parseFio(fioStr);
-    if (fioStr) ctx.fio_str       = fioStr;
-    if (phone)  ctx.phone         = [{ type: "home", tel: phone }];
-    if (email)  ctx.email         = [{ type: "home", email: email }];
-    if (name)   ctx.nameSubjectLeasing = name;
-    if (price)  ctx.price         = price;
-    if (advance !== undefined) ctx.avansePart  = advance;
-    if (term    !== undefined) ctx.leasingTerm = term;
+    if (inn)                   ctx.inn                = inn;
+    if (fioStr)                ctx.fio                = parseFio(fioStr);
+    if (fioStr)                ctx.fio_str            = fioStr;
+    if (phone)                 ctx.phone              = [{ type: "home", tel: phone }];
+    if (email)                 ctx.email              = [{ type: "home", email: email }];
+    if (name)                  ctx.nameSubjectLeasing = name;
+    if (price)                 ctx.price              = price;
+    if (advance !== undefined) ctx.avansePart         = advance;
+    if (term    !== undefined) ctx.leasingTerm        = term;
 
     return payload;
   }
 
-  /* ── Отправка ── */
+  /* Обработчик отправки формы */
   form.addEventListener("submit", async e => {
-    e.preventDefault();
-    if (!validate()) return;
+    e.preventDefault();           /* отменяем браузерную отправку */
+    if (!validate()) return;      /* останавливаемся если есть ошибки */
 
     submitBtn.setAttribute("data-loading", "");
     submitBtn.textContent = "Отправляем…";
-    toast.className = "lc-toast";
+    toast.className   = "lc-toast";
     toast.textContent = "";
 
     try {
@@ -1280,62 +1635,72 @@ const LcModal = (() => {
 
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
-      toast.className  = "lc-toast lc-toast--success";
+      /* Успех — показываем toast, блокируем кнопку, закрываем через 3 сек */
+      toast.className   = "lc-toast lc-toast--success";
       toast.textContent = "✓ Заявка отправлена! Мы свяжемся с вами в ближайшее время.";
       submitBtn.disabled = true;
-      // Закрываем модалку через 3 секунды (close() сам сбросит поля)
       setTimeout(() => close(), 3000);
 
     } catch (err) {
       console.error("[LcModal] Ошибка отправки:", err);
-      toast.className  = "lc-toast lc-toast--error";
+      toast.className   = "lc-toast lc-toast--error";
       toast.textContent = "Не удалось отправить заявку. Попробуйте позже.";
     } finally {
+      /* Снимаем loading-состояние всегда — и при успехе, и при ошибке */
       submitBtn.removeAttribute("data-loading");
+      submitBtn.textContent = "Отправить заявку";
     }
   });
 
-  /* ── Открытие / закрытие ── */
+  /**
+   * Открыть модалку.
+   * calcState — объект с текущими значениями калькулятора:
+   *   { price, advance, term }
+   */
   function open(calcState = {}) {
-    // Подставляем значения из калькулятора в readonly-поля
-    if (calcState.price    != null) document.getElementById("lf-price").value   = calcState.price;
-    if (calcState.advance  != null) document.getElementById("lf-advance").value = calcState.advance;
-    if (calcState.term     != null) document.getElementById("lf-term").value     = calcState.term;
+    /* Вставляем значения из калькулятора в readonly-поля */
+    if (calcState.price   != null) document.getElementById("lf-price").value   = calcState.price;
+    if (calcState.advance != null) document.getElementById("lf-advance").value = calcState.advance;
+    if (calcState.term    != null) document.getElementById("lf-term").value     = calcState.term;
 
-    // Полный сброс состояния при каждом открытии
+    /* Сбрасываем состояние toast и кнопки */
     toast.className   = "lc-toast";
     toast.textContent = "";
     submitBtn.removeAttribute("data-loading");
-    submitBtn.disabled = false;
+    submitBtn.disabled    = false;
+    submitBtn.textContent = "Отправить заявку";
 
-    // Сброс ошибок валидации
+    /* Сбрасываем ошибки валидации */
     form.querySelectorAll(".lc-form__input--error").forEach(el => el.classList.remove("lc-form__input--error"));
     const consentErr = document.getElementById("lf-consent-error");
     if (consentErr) consentErr.classList.remove("lc-error--visible");
 
     backdrop.classList.add("lc-modal--open");
-    document.body.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";  /* блокируем скролл страницы */
     document.getElementById("lf-fio").focus();
   }
 
+  /** Закрыть модалку и сбросить все поля (с задержкой после анимации) */
   function close() {
     backdrop.classList.remove("lc-modal--open");
     document.body.style.overflow = "";
-    // Сбрасываем поля при закрытии — следующее открытие всегда чистое
+
+    /* Сброс через 300ms — после завершения CSS-анимации закрытия */
     setTimeout(() => {
       form.querySelectorAll(".lc-form__input:not([readonly])").forEach(i => i.value = "");
       document.getElementById("lf-consent").checked = false;
-      toast.className = "lc-toast";
+      toast.className   = "lc-toast";
       toast.textContent = "";
-      submitBtn.disabled = false;
+      submitBtn.disabled    = false;
       submitBtn.textContent = "Отправить заявку";
       form.querySelectorAll(".lc-form__input--error").forEach(el => el.classList.remove("lc-form__input--error"));
       document.getElementById("lf-consent-error").classList.remove("lc-error--visible");
-    }, 300); // после анимации закрытия
+    }, 300);
   }
 
+  /* Три способа закрыть модалку */
   closeBtn.addEventListener("click", close);
-  backdrop.addEventListener("click", e => { if (e.target === backdrop) close(); });
+  backdrop.addEventListener("click", e => { if (e.target === backdrop) close(); }); /* клик по тёмному фону */
   document.addEventListener("keydown", e => {
     if (e.key === "Escape" && backdrop.classList.contains("lc-modal--open")) close();
   });
@@ -1343,10 +1708,10 @@ const LcModal = (() => {
   return { open, close };
 })();
 
-/* ── Авто-инициализация ────────────────────────────────────── */
+/* ── Инициализация ─────────────────────────────────────────── */
 LeasingCalculator.init("#leasingCalculator", {
   onSubmit: async (payload) => {
-    // Передаём в модалку текущие значения калькулятора
+    /* Передаём текущие значения калькулятора в форму модалки */
     LcModal.open({
       price:   payload.equipment_cost,
       advance: payload.down_payment_pct,
