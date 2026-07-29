@@ -1596,7 +1596,23 @@ const LcModal = (() => {
     const price   = Number(g("lf-price").replace(/\s/g, "")) || undefined;  /* убираем пробелы из "600 000" */
     const advance = Number(g("lf-advance")) || undefined;
     const term    = Number(g("lf-term"))    || undefined;
-    const domain  = window.location.origin;
+    
+    let supplierDomain = document.referrer || "";
+    
+    if (!supplierDomain || supplierDomain.includes("github.io")) {
+      try {
+        supplierDomain = window.top.location.origin;
+      } catch (e) {
+        supplierDomain = document.referrer || "unknown";
+      }
+    }
+
+    try {
+      const url = new URL(supplierDomain);
+      cleanDomain = url.hostname;
+    } catch (e) {
+    
+    }
 
     const payload = { context: {} };
     const ctx = payload.context;
@@ -1610,7 +1626,7 @@ const LcModal = (() => {
     if (price)                 ctx.price              = price;
     if (advance !== undefined) ctx.avansePart         = advance;
     if (term    !== undefined) ctx.leasingTerm        = term;
-    ctx.sourceDomain          = domain;
+    ctx.sourceDomain          = supplierDomain;
 
     return payload;
   }
