@@ -1596,6 +1596,7 @@ const LcModal = (() => {
     const price   = Number(g("lf-price").replace(/\s/g, "")) || undefined;  /* убираем пробелы из "600 000" */
     const advance = Number(g("lf-advance")) || undefined;
     const term    = Number(g("lf-term"))    || undefined;
+    const domain  = window.location.origin;
 
     const payload = { context: {} };
     const ctx = payload.context;
@@ -1609,6 +1610,7 @@ const LcModal = (() => {
     if (price)                 ctx.price              = price;
     if (advance !== undefined) ctx.avansePart         = advance;
     if (term    !== undefined) ctx.leasingTerm        = term;
+    ctx.sourceDomain          = domain;
 
     return payload;
   }
